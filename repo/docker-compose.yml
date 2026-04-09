@@ -1,0 +1,122 @@
+version: "3.9"
+
+# =============================================================================
+# VitalPath deployment
+# =============================================================================
+# Services:
+#   db      — PostgreSQL 16 (primary datastore)
+#   app     — Rust backend (migrations run automatically on startup)
+#   backup  — Encrypted daily backup + quarterly restore drill (cron-based)
+#
+# Volumes:
+#   pg_data      — PostgreSQL WAL and data files
+#   backup_data  — Encrypted backup archives (.sql.gz.enc) and logs
+#   exports_data — Analytics export files written by the app
+#
+# Quickstart:
+#   cp .env.example .env          # fill in secrets
+#   docker compose up -d
+#
+# All secrets must be overridden via environment variables or a .env file
+# before running in production.  Do NOT use the placeholder values below.
+# =============================================================================
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-vitalpath}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vitalpath_secret}
+      POSTGRES_DB:       ${POSTGRES_DB:-vitalpath_db}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vitalpath} -d ${POSTGRES_DB:-vitalpath_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Expose only when direct DB access is needed (e.g. migrations, debugging).
+    # Remove or comment this out in production.
+    ports:
+      - "5432:5432"
+
+  # ── Rust backend ────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-vitalpath}:${POSTGRES_PASSWORD:-vitalpath_secret}@db:5432/${POSTGRES_DB:-vitalpath_db}
+
+      # JWT signing key — generate: openssl rand -base64 32
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production_min_32_chars!!}
+
+      # AES-256-GCM field-level encryption key (base64, 32 bytes)
+      # Generate: openssl rand -base64 32
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+
+      # HMAC signing secret — generate: openssl rand -hex 32
+      HMAC_SECRET: ${HMAC_SECRET:-change_me_in_production_use_openssl_rand_hex_32}
+
+      # Directory for analytics export files (mounted volume)
+      EXPORTS_DIR: /exports
+
+      RUST_LOG: ${RUST_LOG:-info}
+      HOST:     ${HOST:-0.0.0.0}
+      PORT:     ${PORT:-8080}
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    volumes:
+      - exports_data:/exports
+
+  # ── Backup service ──────────────────────────────────────────────────────────
+  # Cron schedule (UTC):
+  #   02:00 daily     — encrypted pg_dump → /backups/vitalpath_backup_*.sql.gz.enc
+  #   04:00 quarterly — restore drill into a throwaway DB, then tear it down
+  #
+  # Manual operations:
+  #   docker compose exec backup /scripts/backup.sh          # immediate backup
+  #   docker compose exec backup /scripts/restore.sh         # restore latest
+  #   docker compose exec backup /scripts/restore_drill.sh   # run drill now
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-vitalpath}:${POSTGRES_PASSWORD:-vitalpath_secret}@db:5432/${POSTGRES_DB:-vitalpath_db}
+
+      # AES-256-CBC passphrase for backup encryption
+      # Generate: openssl rand -hex 32
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-change_me_generate_with_openssl_rand_hex_32}
+
+      BACKUP_DIR:   /backups
+      RETAIN_DAYS:  ${RETAIN_DAYS:-30}
+    volumes:
+      - backup_data:/backups
+
+# =============================================================================
+# Named volumes — all data stays on the local Docker host (fully offline).
+# To bind-mount to a host path instead, replace the volume entry with:
+#
+#   pg_data:
+#     driver: local
+#     driver_opts:
+#       type: none
+#       device: /srv/vitalpath/postgres
+#       o: bind
+# =============================================================================
+volumes:
+  pg_data:
+  backup_data:
+  exports_data:

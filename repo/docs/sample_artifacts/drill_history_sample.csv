@@ -1,0 +1,5 @@
+drill_id,timestamp,backup_file,result
+drill_20250101_040001,2025-01-01T04:00:46Z,vitalpath_backup_2024-12-31_020001.sql.gz.enc,PASS
+drill_20250401_040001,2025-04-01T04:00:44Z,vitalpath_backup_2025-03-31_020001.sql.gz.enc,PASS
+drill_20250701_040001,2025-07-01T04:00:46Z,vitalpath_backup_2025-06-30_020001.sql.gz.enc,PASS
+drill_20251001_040001,2025-10-01T04:00:43Z,vitalpath_backup_2025-09-30_020001.sql.gz.enc,PASS

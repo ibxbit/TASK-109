@@ -1,0 +1,211 @@
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-000000000001",
+    "actor_id": "20000000-0000-0000-0000-000000000001",
+    "action": "LOGIN_SUCCESS",
+    "reason_code": "LOGIN_SUCCESS",
+    "entity_type": "user",
+    "entity_id": "20000000-0000-0000-0000-000000000001",
+    "old_value": null,
+    "new_value": {
+      "username": "admin",
+      "role": "administrator"
+    },
+    "old_hash": null,
+    "new_hash": "3a5f9d2b7c4e1a8f6b3c9e2d5a8f4b7c1e9d2a5f8b3c6e9d2a5f8b3c6e9d2a5f",
+    "ip_address": "172.18.0.1",
+    "created_at": "2025-06-15T14:23:01.123456Z"
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-000000000002",
+    "actor_id": null,
+    "action": "LOGIN_FAILED",
+    "reason_code": "LOGIN_FAILED",
+    "entity_type": "user",
+    "entity_id": "20000000-0000-0000-0000-000000000001",
+    "old_value": null,
+    "new_value": {
+      "username": "admin",
+      "attempt": 1,
+      "reason": "wrong_password"
+    },
+    "old_hash": null,
+    "new_hash": "7c2e4a8f1b5d9c3e7a2f6b1d5c9e3a7f2b6d1c5e9a3f7b2d6c1e5a9f3b7d2c6e",
+    "ip_address": "172.18.0.1",
+    "created_at": "2025-06-15T14:22:45.654321Z"
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-000000000003",
+    "actor_id": "20000000-0000-0000-0000-000000000002",
+    "action": "HEALTH_PROFILE_CREATED",
+    "reason_code": "HEALTH_PROFILE_CREATED",
+    "entity_type": "health_profile",
+    "entity_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "old_value": null,
+    "new_value": {
+      "member_id": "30000000-0000-0000-0000-000000000001",
+      "sex": "male",
+      "height_in": 70.0,
+      "weight_lbs": 175.0,
+      "activity_level": "moderately_active",
+      "encryption_key_id": "v1"
+    },
+    "old_hash": null,
+    "new_hash": "5b9f3d2a7e4c1b8f6c3d9a2e5f8b1c4d7a3e6b9f2c5d8a1e4b7c0d3f6a9e2b5c",
+    "ip_address": "172.18.0.1",
+    "created_at": "2025-06-15T14:25:12.789012Z"
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-000000000004",
+    "actor_id": "20000000-0000-0000-0000-000000000002",
+    "action": "HEALTH_PROFILE_UPDATED",
+    "reason_code": "HEALTH_PROFILE_UPDATED",
+    "entity_type": "health_profile",
+    "entity_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "old_value": {
+      "member_id": "30000000-0000-0000-0000-000000000001",
+      "weight_lbs": 175.0,
+      "activity_level": "moderately_active",
+      "encryption_key_id": "v1"
+    },
+    "new_value": {
+      "member_id": "30000000-0000-0000-0000-000000000001",
+      "weight_lbs": 172.5,
+      "activity_level": "active",
+      "encryption_key_id": "v1"
+    },
+    "old_hash": "9e3b7f1d5a8c2e6b0d4f8a2c6e0b4d8f2a6c0e4b8d2f6a0c4e8b2d6f0a4c8e2b",
+    "new_hash": "4a8d2f6c0e4b8d2f6a0c4e8b2d6f0a4c8e2b6d0f4a8c2e6b0d4f8a2c6e0b4d8f",
+    "ip_address": "172.18.0.1",
+    "created_at": "2025-06-15T15:10:33.234567Z"
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-000000000005",
+    "actor_id": "20000000-0000-0000-0000-000000000002",
+    "action": "METRIC_ENTRY_CREATED",
+    "reason_code": "METRIC_ENTRY_CREATED",
+    "entity_type": "metric_entry",
+    "entity_id": "c3d4e5f6-a7b8-9012-cdef-234567890123",
+    "old_value": null,
+    "new_value": {
+      "member_id": "30000000-0000-0000-0000-000000000001",
+      "metric_type": "weight",
+      "value": 172.5,
+      "recorded_at": "2025-06-15T15:10:00Z"
+    },
+    "old_hash": null,
+    "new_hash": "2f6a0c4e8b2d6f0a4c8e2b6d0f4a8c2e6b0d4f8a2c6e0b4d8f2a6c0e4b8d2f6a",
+    "ip_address": "172.18.0.1",
+    "created_at": "2025-06-15T15:10:34.345678Z"
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-000000000006",
+    "actor_id": "20000000-0000-0000-0000-000000000002",
+    "action": "GOAL_CREATED",
+    "reason_code": "GOAL_CREATED",
+    "entity_type": "goal",
+    "entity_id": "d4e5f6a7-b8c9-0123-def0-345678901234",
+    "old_value": null,
+    "new_value": {
+      "member_id": "30000000-0000-0000-0000-000000000001",
+      "goal_type": "fat_loss",
+      "title": "Reduce body fat to 20%",
+      "start_date": "2025-06-15",
+      "baseline_value": 25.0,
+      "target_value": 20.0,
+      "status": "active"
+    },
+    "old_hash": null,
+    "new_hash": "8b2d6f0a4c8e2b6d0f4a8c2e6b0d4f8a2c6e0b4d8f2a6c0e4b8d2f6a0c4e8b2d",
+    "ip_address": "172.18.0.1",
+    "created_at": "2025-06-15T15:11:00.456789Z"
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-000000000007",
+    "actor_id": "20000000-0000-0000-0000-000000000001",
+    "action": "ANALYTICS_EXPORT",
+    "reason_code": "ANALYTICS_EXPORT",
+    "entity_type": "export",
+    "entity_id": null,
+    "old_value": null,
+    "new_value": {
+      "format": "csv",
+      "filename": "vitalpath_export_2025-06-15_160000.csv",
+      "download_url": "/exports/vitalpath_export_2025-06-15_160000.csv"
+    },
+    "old_hash": null,
+    "new_hash": "6c0e4b8d2f6a0c4e8b2d6f0a4c8e2b6d0f4a8c2e6b0d4f8a2c6e0b4d8f2a6c0e",
+    "ip_address": "172.18.0.1",
+    "created_at": "2025-06-15T16:00:05.567890Z"
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-000000000008",
+    "actor_id": "20000000-0000-0000-0000-000000000001",
+    "action": "WORK_ORDER_CREATED",
+    "reason_code": "WORK_ORDER_CREATED",
+    "entity_type": "work_order",
+    "entity_id": "e5f6a7b8-c9d0-1234-ef01-456789012345",
+    "old_value": null,
+    "new_value": {
+      "title": "Member follow-up: glucose monitoring",
+      "status": "intake",
+      "org_unit_id": "10000000-0000-0000-0000-000000000001"
+    },
+    "old_hash": null,
+    "new_hash": "0e4b8d2f6a0c4e8b2d6f0a4c8e2b6d0f4a8c2e6b0d4f8a2c6e0b4d8f2a6c0e4b",
+    "ip_address": "172.18.0.1",
+    "created_at": "2025-06-15T16:05:22.678901Z"
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-000000000009",
+    "actor_id": "20000000-0000-0000-0000-000000000001",
+    "action": "WORK_ORDER_TRANSITION",
+    "reason_code": "WORK_ORDER_TRANSITION",
+    "entity_type": "work_order",
+    "entity_id": "e5f6a7b8-c9d0-1234-ef01-456789012345",
+    "old_value": {
+      "status": "intake"
+    },
+    "new_value": {
+      "status": "triage"
+    },
+    "old_hash": "4b8d2f6a0c4e8b2d6f0a4c8e2b6d0f4a8c2e6b0d4f8a2c6e0b4d8f2a6c0e4b8d",
+    "new_hash": "8d2f6a0c4e8b2d6f0a4c8e2b6d0f4a8c2e6b0d4f8a2c6e0b4d8f2a6c0e4b8d2f",
+    "ip_address": "172.18.0.1",
+    "created_at": "2025-06-15T16:10:14.789012Z"
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-000000000010",
+    "actor_id": null,
+    "action": "SLA_BREACHED",
+    "reason_code": "SLA_BREACHED",
+    "entity_type": "approval",
+    "entity_id": "f6a7b8c9-d0e1-2345-f012-567890123456",
+    "old_value": null,
+    "new_value": {
+      "workflow_instance_id": "a7b8c9d0-e1f2-3456-0123-678901234567",
+      "node_id": "b8c9d0e1-f2a3-4567-1234-789012345678",
+      "sla_deadline": "2025-06-13T14:23:01Z"
+    },
+    "old_hash": null,
+    "new_hash": "2f6a0c4e8b2d6f0a4c8e2b6d0f4a8c2e6b0d4f8a2c6e0b4d8f2a6c0e4b8d2f6a",
+    "ip_address": null,
+    "created_at": "2025-06-15T16:15:00.890123Z"
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-000000000011",
+    "actor_id": "20000000-0000-0000-0000-000000000001",
+    "action": "LOGOUT",
+    "reason_code": "LOGOUT",
+    "entity_type": "session",
+    "entity_id": "c9d0e1f2-a3b4-5678-2345-890123456789",
+    "old_value": null,
+    "new_value": {
+      "session_id": "c9d0e1f2-a3b4-5678-2345-890123456789"
+    },
+    "old_hash": null,
+    "new_hash": "6a0c4e8b2d6f0a4c8e2b6d0f4a8c2e6b0d4f8a2c6e0b4d8f2a6c0e4b8d2f6a0c",
+    "ip_address": "172.18.0.1",
+    "created_at": "2025-06-15T17:00:00.901234Z"
+  }
+]

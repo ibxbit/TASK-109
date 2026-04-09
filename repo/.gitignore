@@ -1,0 +1,70 @@
+# =============================================================================
+# VitalPath — .gitignore
+# =============================================================================
+
+# ── Rust build output ─────────────────────────────────────────────────────────
+/target/
+**/*.rs.bk
+
+# ── Cargo local config (machine-specific overrides) ──────────────────────────
+.cargo/config.toml
+.cargo/msvc-stubs/
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.p12
+*.pfx
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Temporary and backup files ────────────────────────────────────────────────
+*.tmp
+.tmp/
+*.bak
+*.swp
+*.swo
+*~
+.#*
+
+# ── OS artefacts ─────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ── IDE / editor settings ────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.fleet/
+*.code-workspace
+.history/
+.project
+.classpath
+.settings/
+nbproject/
+
+# ── Claude Code tool state ───────────────────────────────────────────────────
+.claude/
+
+# ── Docker local volumes (if bind-mounted to repo root) ──────────────────────
+backups/
+exports/
+pg_data/
+
+# ── Test artefacts produced by run_tests.sh ───────────────────────────────────
+test-results/
+*.tap
+coverage/

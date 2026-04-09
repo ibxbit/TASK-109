@@ -1,0 +1,42 @@
+# =============================================================================
+# VitalPath backup service
+# =============================================================================
+# Runs two cron jobs:
+#   - Daily encrypted pg_dump (02:00 UTC)
+#   - Quarterly restore drill (04:00 UTC, first of Jan/Apr/Jul/Oct)
+#
+# Backups are written to /backups (mounted as a named Docker volume).
+# =============================================================================
+
+FROM debian:bookworm-slim
+
+# Install PostgreSQL client tools, openssl, and cron
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        cron \
+        openssl \
+        postgresql-client \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy scripts and mark them executable
+COPY scripts/backup.sh       /scripts/backup.sh
+COPY scripts/restore.sh      /scripts/restore.sh
+COPY scripts/restore_drill.sh /scripts/restore_drill.sh
+RUN chmod +x /scripts/backup.sh /scripts/restore.sh /scripts/restore_drill.sh
+
+# Install crontab
+COPY scripts/crontab /etc/cron.d/vitalpath-backup
+RUN chmod 0644 /etc/cron.d/vitalpath-backup \
+ && crontab /etc/cron.d/vitalpath-backup
+
+# Ensure backup volume exists at image-build time
+RUN mkdir -p /backups
+
+# Pass env vars to cron (cron does not inherit the shell environment by default)
+# The entrypoint writes a shell snippet that exports all env vars before each job runs.
+COPY scripts/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+VOLUME ["/backups"]
+
+ENTRYPOINT ["/entrypoint.sh"]

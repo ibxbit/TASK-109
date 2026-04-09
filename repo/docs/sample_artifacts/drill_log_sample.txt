@@ -1,0 +1,124 @@
+# Sample /backups/drill.log — four quarterly drills (one full year)
+# Format: [ISO-8601 timestamp] DRILL <LEVEL> <message>
+# This file is append-only; immutability enforced by append-mode open in restore_drill.sh.
+# Each drill is separated by a blank line and terminated with a "Result:" marker.
+
+[2025-01-01T04:00:01Z] DRILL INFO ════════════════════════════════════════════
+[2025-01-01T04:00:01Z] DRILL INFO  Quarterly Restore Drill: drill_20250101_040001
+[2025-01-01T04:00:01Z] DRILL INFO ════════════════════════════════════════════
+[2025-01-01T04:00:01Z] DRILL INFO Backup file: vitalpath_backup_2024-12-31_020001.sql.gz.enc
+[2025-01-01T04:00:01Z] DRILL INFO Checksum pre-check: PASS
+[2025-01-01T04:00:02Z] DRILL INFO Creating drill database: vitalpath_drill_20250101_040001
+[2025-01-01T04:00:02Z] DRILL INFO Restoring backup into drill database...
+[2025-01-01T04:00:38Z] DRILL INFO Restore: PASS
+[2025-01-01T04:00:38Z] DRILL INFO Running integrity checks...
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ roles: 4 rows (min 1)
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ users: 3 rows (min 1)
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ sessions: 0 rows (min 0)
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ members: 1 rows (min 0)
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ health_profiles: 0 rows (min 0)
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ metric_types: 6 rows (min 1)
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ metric_entries: 0 rows (min 0)
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ goals: 0 rows (min 0)
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ audit_logs: 0 rows (min 0)
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ key_rotation_logs: 1 rows (min 1)
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ audit_logs has reason_code, old_hash, new_hash
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ health_profiles has encryption_key_id
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ key_rotation_logs table is queryable
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ users table has lockout columns
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ goals table has goal_type
+[2025-01-01T04:00:38Z] DRILL INFO   ✓ health_profiles: all rows have encryption_key_id
+[2025-01-01T04:00:38Z] DRILL INFO All checks passed
+[2025-01-01T04:00:39Z] DRILL INFO Dropping drill database: vitalpath_drill_20250101_040001
+
+[2025-01-01T04:00:39Z] DRILL ════ Result: PASS (drill_20250101_040001) ════
+
+[2025-04-01T04:00:01Z] DRILL INFO ════════════════════════════════════════════
+[2025-04-01T04:00:01Z] DRILL INFO  Quarterly Restore Drill: drill_20250401_040001
+[2025-04-01T04:00:01Z] DRILL INFO ════════════════════════════════════════════
+[2025-04-01T04:00:01Z] DRILL INFO Backup file: vitalpath_backup_2025-03-31_020001.sql.gz.enc
+[2025-04-01T04:00:01Z] DRILL INFO Checksum pre-check: PASS
+[2025-04-01T04:00:02Z] DRILL INFO Creating drill database: vitalpath_drill_20250401_040001
+[2025-04-01T04:00:02Z] DRILL INFO Restoring backup into drill database...
+[2025-04-01T04:00:41Z] DRILL INFO Restore: PASS
+[2025-04-01T04:00:41Z] DRILL INFO Running integrity checks...
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ roles: 4 rows (min 1)
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ users: 3 rows (min 1)
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ sessions: 2 rows (min 0)
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ members: 1 rows (min 0)
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ health_profiles: 1 rows (min 0)
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ metric_types: 6 rows (min 1)
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ metric_entries: 14 rows (min 0)
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ goals: 3 rows (min 0)
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ audit_logs: 87 rows (min 0)
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ key_rotation_logs: 1 rows (min 1)
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ audit_logs has reason_code, old_hash, new_hash
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ health_profiles has encryption_key_id
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ key_rotation_logs table is queryable
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ users table has lockout columns
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ goals table has goal_type
+[2025-04-01T04:00:41Z] DRILL INFO   ✓ health_profiles: all rows have encryption_key_id
+[2025-04-01T04:00:41Z] DRILL INFO All checks passed
+[2025-04-01T04:00:42Z] DRILL INFO Dropping drill database: vitalpath_drill_20250401_040001
+
+[2025-04-01T04:00:42Z] DRILL ════ Result: PASS (drill_20250401_040001) ════
+
+[2025-07-01T04:00:01Z] DRILL INFO ════════════════════════════════════════════
+[2025-07-01T04:00:01Z] DRILL INFO  Quarterly Restore Drill: drill_20250701_040001
+[2025-07-01T04:00:01Z] DRILL INFO ════════════════════════════════════════════
+[2025-07-01T04:00:01Z] DRILL INFO Backup file: vitalpath_backup_2025-06-30_020001.sql.gz.enc
+[2025-07-01T04:00:01Z] DRILL INFO Checksum pre-check: PASS
+[2025-07-01T04:00:02Z] DRILL INFO Creating drill database: vitalpath_drill_20250701_040001
+[2025-07-01T04:00:02Z] DRILL INFO Restoring backup into drill database...
+[2025-07-01T04:00:44Z] DRILL INFO Restore: PASS
+[2025-07-01T04:00:44Z] DRILL INFO Running integrity checks...
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ roles: 4 rows (min 1)
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ users: 3 rows (min 1)
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ sessions: 1 rows (min 0)
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ members: 1 rows (min 0)
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ health_profiles: 1 rows (min 0)
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ metric_types: 6 rows (min 1)
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ metric_entries: 31 rows (min 0)
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ goals: 5 rows (min 0)
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ audit_logs: 219 rows (min 0)
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ key_rotation_logs: 2 rows (min 1)
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ audit_logs has reason_code, old_hash, new_hash
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ health_profiles has encryption_key_id
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ key_rotation_logs table is queryable
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ users table has lockout columns
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ goals table has goal_type
+[2025-07-01T04:00:44Z] DRILL INFO   ✓ health_profiles: all rows have encryption_key_id
+[2025-07-01T04:00:44Z] DRILL INFO All checks passed
+[2025-07-01T04:00:45Z] DRILL INFO Dropping drill database: vitalpath_drill_20250701_040001
+
+[2025-07-01T04:00:45Z] DRILL ════ Result: PASS (drill_20250701_040001) ════
+
+[2025-10-01T04:00:01Z] DRILL INFO ════════════════════════════════════════════
+[2025-10-01T04:00:01Z] DRILL INFO  Quarterly Restore Drill: drill_20251001_040001
+[2025-10-01T04:00:01Z] DRILL INFO ════════════════════════════════════════════
+[2025-10-01T04:00:01Z] DRILL INFO Backup file: vitalpath_backup_2025-09-30_020001.sql.gz.enc
+[2025-10-01T04:00:01Z] DRILL INFO Checksum pre-check: PASS
+[2025-10-01T04:00:02Z] DRILL INFO Creating drill database: vitalpath_drill_20251001_040001
+[2025-10-01T04:00:02Z] DRILL INFO Restoring backup into drill database...
+[2025-10-01T04:00:43Z] DRILL INFO Restore: PASS
+[2025-10-01T04:00:43Z] DRILL INFO Running integrity checks...
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ roles: 4 rows (min 1)
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ users: 3 rows (min 1)
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ sessions: 0 rows (min 0)
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ members: 1 rows (min 0)
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ health_profiles: 1 rows (min 0)
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ metric_types: 6 rows (min 1)
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ metric_entries: 47 rows (min 0)
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ goals: 6 rows (min 0)
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ audit_logs: 382 rows (min 0)
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ key_rotation_logs: 2 rows (min 1)
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ audit_logs has reason_code, old_hash, new_hash
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ health_profiles has encryption_key_id
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ key_rotation_logs table is queryable
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ users table has lockout columns
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ goals table has goal_type
+[2025-10-01T04:00:43Z] DRILL INFO   ✓ health_profiles: all rows have encryption_key_id
+[2025-10-01T04:00:43Z] DRILL INFO All checks passed
+[2025-10-01T04:00:44Z] DRILL INFO Dropping drill database: vitalpath_drill_20251001_040001
+
+[2025-10-01T04:00:44Z] DRILL ════ Result: PASS (drill_20251001_040001) ════

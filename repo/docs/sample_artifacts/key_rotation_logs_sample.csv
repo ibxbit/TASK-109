@@ -1,0 +1,3 @@
+id,key_version,rotated_at,rotated_by,notes,fields_updated
+a1b2c3d4-e5f6-7890-abcd-000000000001,v1,2025-01-01 00:00:00+00,,(seed) initial key — baseline for rotation tracking,0
+e5f6a7b8-c9d0-1234-ef01-456789012345,v2,2025-07-01 00:00:00+00,20000000-0000-0000-0000-000000000001,Scheduled 180-day rotation,147

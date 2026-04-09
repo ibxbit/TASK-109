@@ -1,0 +1,6 @@
+ALTER TABLE goals
+    DROP COLUMN IF EXISTS goal_type,
+    DROP COLUMN IF EXISTS start_date,
+    DROP COLUMN IF EXISTS baseline_value;
+
+DELETE FROM metric_types WHERE id = '00000000-0000-0000-0002-000000000006';

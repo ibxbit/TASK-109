@@ -1,0 +1,16 @@
+# VitalPath backup service crontab
+# ─────────────────────────────────────────────────────────────────────────────
+# All times are UTC.  Adjust the hour offset if a different timezone is needed.
+#
+# Operator reference:
+#   Backup logs  : /backups/backup.log
+#   Restore logs : /backups/restore.log
+#   Drill logs   : /backups/drill.log
+#   Drill history: /backups/drill_history.csv
+#   Manifest     : /backups/manifest.csv
+
+# Daily encrypted backup — 02:00 UTC
+0 2 * * *   /scripts/backup.sh >> /backups/cron.log 2>&1
+
+# Quarterly restore drill — 04:00 UTC on Jan 1, Apr 1, Jul 1, Oct 1
+0 4 1 1,4,7,10 *   /scripts/restore_drill.sh >> /backups/cron.log 2>&1

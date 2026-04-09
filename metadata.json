@@ -1,0 +1,9 @@
+{
+    "prompt": "A Rust-based backend server for health, metrics, goals, and notification management, using PostgreSQL as the database.",
+    "project_type": "server",
+    "frontend_language": "none",
+    "backend_language": "rust",
+    "frontend_framework": "none",
+    "backend_framework": "actix-web",
+    "database": "postgresql"
+}

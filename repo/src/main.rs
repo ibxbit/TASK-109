@@ -32,6 +32,8 @@ async fn main() -> std::io::Result<()> {
     eprintln!("[vitalpath] initialising DB pool");
     let pool = db::init_pool(&cfg.database_url);
 
+    eprintln!("[vitalpath] waiting for database");
+    db::wait_for_db(&pool);
     eprintln!("[vitalpath] running migrations");
     db::run_migrations(&pool);
     eprintln!("[vitalpath] seeding initial data");

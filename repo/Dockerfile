@@ -36,6 +36,7 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq5 \
         ca-certificates \
+        curl \
     && rm -rf /var/lib/apt/lists/* \
  && useradd --system --no-create-home --shell /sbin/nologin vitalpath
 

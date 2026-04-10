@@ -54,6 +54,16 @@ for cmd in curl jq docker; do
     fi
 done
 
+# ─── Environment check ────────────────────────────────────────────────────────
+# If NOT running inside a Docker container, delegate to the 'tester' service.
+# This ensures we don't depend on local 'curl' or 'jq' versions.
+if [ ! -f /.dockerenv ] && [ "$NO_START" = false ]; then
+    banner "Delegating to Docker Test Runner"
+    docker compose -f "$COMPOSE_FILE" up -d --build app db
+    docker compose -f "$COMPOSE_FILE" run --rm tester
+    exit $?
+fi
+
 # ── Start stack ───────────────────────────────────────────────────────────────
 if [ "$NO_START" = false ]; then
     banner "Starting Docker Compose stack"

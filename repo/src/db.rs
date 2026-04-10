@@ -10,18 +10,28 @@ pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 pub fn init_pool(database_url: &str) -> DbPool {
-    let manager = ConnectionManager::<PgConnection>::new(database_url);
-    Pool::builder()
-        // Large enough to handle 50 concurrent users with headroom
-        .max_size(50)
-        // Start with 1 idle connection; pool grows on demand
-        .min_idle(Some(1))
-        // Allow up to 30 s to acquire a connection before failing
-        .connection_timeout(std::time::Duration::from_secs(30))
-        // Recycle idle connections to avoid stale sockets after network blips
-        .idle_timeout(Some(std::time::Duration::from_secs(600)))
-        .build(manager)
-        .expect("Failed to create database connection pool")
+    let mut attempts = 0;
+    loop {
+        attempts += 1;
+        let manager = ConnectionManager::<PgConnection>::new(database_url);
+        let result = Pool::builder()
+            .max_size(50)
+            .min_idle(Some(1))
+            .connection_timeout(std::time::Duration::from_secs(30))
+            .idle_timeout(Some(std::time::Duration::from_secs(600)))
+            .build(manager);
+
+        match result {
+            Ok(pool) => return pool,
+            Err(e) => {
+                if attempts >= 20 {
+                    panic!("Failed to create database connection pool after 20 attempts: {}", e);
+                }
+                eprintln!("[vitalpath] pool build failed (attempt {}/20), retrying in 3s... ({})", attempts, e);
+                std::thread::sleep(std::time::Duration::from_secs(3));
+            }
+        }
+    }
 }
 
 /// Lightweight DB connectivity check — tries to acquire a connection from the
@@ -130,10 +140,11 @@ pub fn seed_initial_data(pool: &DbPool) {
 
     info!("Seeding initial users…");
 
-    // Use reduced Argon2id params for test seeds (m=4 MiB instead of 64 MiB).
-    // The default 64 MiB allocation risks OOM in memory-constrained environments.
-    // PHC strings include the params, so verify() reads them correctly.
-    let seed_params = match Params::new(4096, 3, 1, None) {
+    // See seed_params below for the actual Argon2id parameters used.
+    // Use minimum Argon2id params for seed data (m=1 MiB, t=1 iter, p=1 thread).
+    // This keeps peak memory at ~1 MiB per hash in memory-constrained sandboxes.
+    // PHC strings store the params, so verify() reads them correctly at login.
+    let seed_params = match Params::new(1024, 1, 1, None) {
         Ok(p) => p,
         Err(e) => {
             warn!("seed_initial_data: failed to build Argon2 params — {e}; skipping seed");

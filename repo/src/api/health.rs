@@ -1,7 +1,13 @@
 use actix_web::{get, web, HttpResponse};
 use chrono::Utc;
 use serde_json::json;
-use std::time::Instant;
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Instant,
+};
 
 use crate::db::DbPool;
 use crate::metrics::{estimate_p95_ms, update_pool_gauges};
@@ -11,16 +17,33 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(liveness_check);
 }
 
-/// Simple liveness check — returns 200 as long as the process is running.
-/// Used by Docker's health check so the container becomes "healthy" once
-/// the HTTP server is up, independent of database connectivity.
+/// Liveness check — always 200 while the process is running.
+/// Docker health check uses this endpoint so the container becomes "healthy"
+/// the moment the HTTP server binds, independent of DB state.
 #[get("/healthz")]
 async fn liveness_check() -> HttpResponse {
     HttpResponse::Ok().json(json!({"status": "ok"}))
 }
 
+/// Readiness check — 200 only after migrations + seeding are complete and
+/// the DB can be reached.  run_tests.sh waits on `.status == "ok"` here
+/// before starting any API tests.
 #[get("/health")]
-async fn health_check(pool: web::Data<DbPool>) -> HttpResponse {
+async fn health_check(
+    pool: web::Data<DbPool>,
+    db_ready: web::Data<Arc<AtomicBool>>,
+) -> HttpResponse {
+    // While DB initialisation (migrations, seeding) is still running, tell
+    // callers to wait.  curl -sf fails on 503, so the test-runner loop
+    // continues polling until we flip the flag.
+    if !db_ready.load(Ordering::SeqCst) {
+        return HttpResponse::ServiceUnavailable().json(json!({
+            "status": "starting",
+            "timestamp": Utc::now().to_rfc3339(),
+            "message": "database initialization in progress"
+        }));
+    }
+
     let pool_inner = pool.clone();
 
     // Run the DB ping on the blocking thread pool to avoid stalling the async executor

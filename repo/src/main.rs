@@ -1,4 +1,8 @@
 use actix_web::{web, App, HttpServer};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -29,28 +33,12 @@ async fn main() -> std::io::Result<()> {
 
     eprintln!("[vitalpath] loading config");
     let cfg = config::AppConfig::from_env();
-    eprintln!("[vitalpath] initialising DB pool");
-    let pool = db::init_pool(&cfg.database_url);
 
-    eprintln!("[vitalpath] waiting for database");
-    db::wait_for_db(&pool);
-    eprintln!("[vitalpath] running migrations");
-    db::run_migrations(&pool);
-    eprintln!("[vitalpath] seeding initial data");
-    db::seed_initial_data(&pool);
-
-    // Ensure exports directory exists
+    // Ensure exports directory exists (filesystem-only, no DB needed)
     std::fs::create_dir_all(&cfg.exports_dir).expect("failed to create exports directory");
 
-    // ── Key-rotation health check ─────────────────────────────
-    match pool.get() {
-        Ok(mut conn) => crypto::check_key_rotation(&mut conn),
-        Err(e) => tracing::warn!("Key rotation check skipped: DB connection unavailable — {e}"),
-    }
-
-    // Background workers — spawned before the pool is moved into web::Data
-    notifications::start_delivery_worker(pool.clone());
-    notifications::start_schedule_worker(pool.clone());
+    eprintln!("[vitalpath] initialising DB pool");
+    let pool = db::init_pool(&cfg.database_url);
 
     // Build the field cipher once; share across all requests via Arc.
     let cipher = web::Data::new(crypto::FieldCipher::new(
@@ -59,9 +47,50 @@ async fn main() -> std::io::Result<()> {
     ));
 
     // ── Rate-limit store — shared across all Actix workers ────
-    let rate_limit_store      = security::rate_limit::new_store();
-    let token_user_cache      = security::rate_limit::new_token_user_cache();
+    let rate_limit_store = security::rate_limit::new_store();
+    let token_user_cache = security::rate_limit::new_token_user_cache();
     let token_user_cache_data = web::Data::new(token_user_cache.clone());
+
+    // Shared readiness flag — false until migrations + seeding complete.
+    // The /health endpoint returns 503 while this is false so run_tests.sh
+    // waits correctly before attempting API calls.
+    let db_ready = Arc::new(AtomicBool::new(false));
+    let db_ready_data = web::Data::new(db_ready.clone());
+
+    // Spawn notification workers now — they tolerate pool failures gracefully
+    // and will begin working once the DB becomes available.
+    notifications::start_delivery_worker(pool.clone());
+    notifications::start_schedule_worker(pool.clone());
+
+    // ── DB initialisation runs in a blocking thread so the HTTP server can
+    // bind and answer /healthz IMMEDIATELY, satisfying the Docker health check
+    // and the test-runner's readiness wait without any delay. ─────────────────
+    {
+        let pool_bg = pool.clone();
+        let db_ready_bg = db_ready.clone();
+        tokio::task::spawn_blocking(move || {
+            eprintln!("[vitalpath] waiting for database");
+            db::wait_for_db(&pool_bg);
+
+            eprintln!("[vitalpath] running migrations");
+            db::run_migrations(&pool_bg);
+
+            eprintln!("[vitalpath] seeding initial data");
+            db::seed_initial_data(&pool_bg);
+
+            // Key-rotation health check — non-fatal if it fails
+            match pool_bg.get() {
+                Ok(mut conn) => crypto::check_key_rotation(&mut conn),
+                Err(e) => {
+                    tracing::warn!("Key rotation check skipped: DB connection unavailable — {e}")
+                }
+            }
+
+            // Signal readiness — /health will now return {"status":"ok"}
+            db_ready_bg.store(true, Ordering::SeqCst);
+            eprintln!("[vitalpath] database initialised — server is fully ready");
+        });
+    }
 
     eprintln!("[vitalpath] binding HTTP server on {}:{}", cfg.host, cfg.port);
     info!(host = %cfg.host, port = cfg.port, "VitalPath starting");
@@ -71,23 +100,24 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         // ── Security headers applied to every response ────────
-        // These mitigate XSS, clickjacking, MIME-sniffing, and
-        // information leakage.  The Content-Security-Policy is
-        // restrictive because this is a pure JSON API with no HTML.
         let security_headers = actix_web::middleware::DefaultHeaders::new()
-            .add(("X-Content-Type-Options",  "nosniff"))
-            .add(("X-Frame-Options",          "DENY"))
-            .add(("X-XSS-Protection",         "1; mode=block"))
-            .add(("Referrer-Policy",           "no-referrer"))
-            .add(("Content-Security-Policy",   "default-src 'none'"))
-            .add(("Cache-Control",             "no-store, no-cache, must-revalidate"))
-            .add(("Strict-Transport-Security", "max-age=31536000; includeSubDomains"));
+            .add(("X-Content-Type-Options", "nosniff"))
+            .add(("X-Frame-Options", "DENY"))
+            .add(("X-XSS-Protection", "1; mode=block"))
+            .add(("Referrer-Policy", "no-referrer"))
+            .add(("Content-Security-Policy", "default-src 'none'"))
+            .add(("Cache-Control", "no-store, no-cache, must-revalidate"))
+            .add((
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            ));
 
         App::new()
             .app_data(pool.clone())
             .app_data(cfg_data.clone())
             .app_data(cipher.clone())
             .app_data(token_user_cache_data.clone())
+            .app_data(db_ready_data.clone())
             // Structured request/response tracing
             .wrap(tracing_actix_web::TracingLogger::default())
             // Prometheus metrics: latency, request counts, error rates
@@ -95,7 +125,10 @@ async fn main() -> std::io::Result<()> {
             // Security headers on every response
             .wrap(security_headers)
             // Per-user sliding-window rate limit (60 req / 60 s)
-            .wrap(security::rate_limit::RateLimit::new(rate_limit_store.clone(), token_user_cache.clone()))
+            .wrap(security::rate_limit::RateLimit::new(
+                rate_limit_store.clone(),
+                token_user_cache.clone(),
+            ))
             .configure(api::health::routes)
             .configure(api::metrics::routes)
             .configure(api::auth::routes)

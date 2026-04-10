@@ -221,8 +221,10 @@ async fn transition_work_order(
 
         // ── Object-level authorization ─────────────────────────
         // Admins may transition any work order.
-        // Care coaches may only transition work orders that are
-        // assigned to them or routed to their org unit.
+        // Care coaches may transition work orders that are:
+        //   - assigned to them, OR
+        //   - routed to their org unit, OR
+        //   - created by them (so the coach who filed a ticket can manage it)
         if !is_admin {
             let coach_org: Option<Uuid> = users::table
                 .find(actor_id)
@@ -230,11 +232,12 @@ async fn transition_work_order(
                 .first::<Option<Uuid>>(&mut conn)
                 .map_err(AppError::Database)?;
 
-            let assigned_to_caller = current.assigned_to == Some(actor_id);
+            let assigned_to_caller  = current.assigned_to == Some(actor_id);
             let routed_to_coach_org = coach_org
                 .is_some_and(|oid| current.routed_to_org_unit_id == Some(oid));
+            let created_by_caller   = current.created_by == actor_id;
 
-            if !assigned_to_caller && !routed_to_coach_org {
+            if !assigned_to_caller && !routed_to_coach_org && !created_by_caller {
                 return Err(AppError::Forbidden);
             }
         }

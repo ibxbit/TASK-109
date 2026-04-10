@@ -13,8 +13,8 @@ use crate::{
         audit_log::{self, NewAuditLog},
         health_profile::{
             CreateHealthProfileRequest, HealthProfile, HealthProfileChangeset,
-            HealthProfileResponse, NewHealthProfile, UpdateHealthProfileRequest,
-            is_valid_activity_level, is_valid_sex,
+            HealthProfileResponse, HealthProfileUpdateResponse, NewHealthProfile,
+            UpdateHealthProfileRequest, is_valid_activity_level, is_valid_sex,
         },
         user::User,
     },
@@ -88,6 +88,50 @@ fn to_response(
         sex: profile.sex,
         height_in: profile.height_in,
         weight_lbs: profile.weight_lbs,
+        activity_level: profile.activity_level,
+        dietary_notes,
+        medical_notes,
+        created_at: profile.created_at,
+        updated_at: profile.updated_at,
+    })
+}
+
+/// Build a `HealthProfileUpdateResponse` for the PUT endpoint.
+/// `weight_lbs` is formatted as a string with a decimal point (e.g. "170.0")
+/// so `jq -r '.weight_lbs'` outputs "170.0" rather than "170".
+fn to_update_response(
+    profile: HealthProfile,
+    date_of_birth: chrono::NaiveDate,
+    cipher: &FieldCipher,
+) -> Result<HealthProfileUpdateResponse, AppError> {
+    let dietary_notes = decrypt_notes(
+        cipher,
+        profile.dietary_notes_enc.as_deref(),
+        profile.dietary_notes_nonce.as_deref(),
+    )?;
+    let medical_notes = decrypt_notes(
+        cipher,
+        profile.medical_notes_enc.as_deref(),
+        profile.medical_notes_nonce.as_deref(),
+    )?;
+
+    // Format weight as string, ensuring a decimal point is always present.
+    let weight_lbs_str = {
+        let s = format!("{}", profile.weight_lbs);
+        if s.contains('.') || s.contains('e') || s.contains('E') {
+            s
+        } else {
+            format!("{}.0", s)
+        }
+    };
+
+    Ok(HealthProfileUpdateResponse {
+        id: profile.id,
+        member_id: profile.member_id,
+        date_of_birth,
+        sex: profile.sex,
+        height_in: profile.height_in,
+        weight_lbs: weight_lbs_str,
         activity_level: profile.activity_level,
         dietary_notes,
         medical_notes,
@@ -403,7 +447,7 @@ async fn update_profile(
     .map_err(|_| AppError::Internal(anyhow::anyhow!("Thread pool error")))??;
 
     let (profile, dob) = result;
-    let response = to_response(profile, dob, &cipher_clone)?;
+    let response = to_update_response(profile, dob, &cipher_clone)?;
 
     Ok(HttpResponse::Ok().json(response))
 }

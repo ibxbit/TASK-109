@@ -31,7 +31,7 @@ COPY . .
 RUN cargo build --release
 
 # ─── Runtime stage ───────────────────────────────────────────────────────────
-FROM rust:1.88-slim-bookworm
+FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq5 \

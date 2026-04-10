@@ -89,7 +89,7 @@ CREATE TABLE metric_types (
 );
 
 -- ------------------------------------------------------------
--- metric_entries  (one entry per member per type per day)
+-- metric_entries  (no exact duplicates: same member, type, date, and value)
 -- ------------------------------------------------------------
 CREATE TABLE metric_entries (
     id             UUID             PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -101,7 +101,7 @@ CREATE TABLE metric_entries (
     notes          TEXT,
     created_at     TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
 
-    CONSTRAINT uq_metric_entry UNIQUE (member_id, metric_type_id, entry_date)
+    CONSTRAINT uq_metric_entry UNIQUE (member_id, metric_type_id, entry_date, value)
 );
 
 CREATE INDEX idx_metric_entries_lookup

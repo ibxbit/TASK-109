@@ -97,6 +97,8 @@ pub struct CreateWorkOrderRequest {
 #[derive(Debug, Deserialize, Validate)]
 pub struct TransitionRequest {
     /// Target status (see VALID_STATUSES).
+    /// Accepts both "to_status" and "new_status" as field names.
+    #[serde(alias = "new_status")]
     pub to_status: String,
     /// Appended to processing history with a timestamp header.
     #[validate(length(max = 2000))]

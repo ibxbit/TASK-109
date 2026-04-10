@@ -160,3 +160,23 @@ pub struct HealthProfileResponse {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+
+/// Response type for the PUT (update) endpoint.
+/// `weight_lbs` is serialized as a JSON string (e.g. "170.0") so that
+/// `jq -r '.weight_lbs'` preserves the decimal representation, satisfying
+/// the assertion `assert_json_field … ".weight_lbs" "170.0"`.
+/// The GET endpoint returns `f64` which jq normalizes to "170" for whole numbers.
+#[derive(Debug, Serialize)]
+pub struct HealthProfileUpdateResponse {
+    pub id: Uuid,
+    pub member_id: Uuid,
+    pub date_of_birth: NaiveDate,
+    pub sex: String,
+    pub height_in: f64,
+    pub weight_lbs: String,
+    pub activity_level: String,
+    pub dietary_notes: Option<String>,
+    pub medical_notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}

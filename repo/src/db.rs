@@ -13,9 +13,10 @@ pub fn init_pool(database_url: &str) -> DbPool {
     Pool::builder()
         // Large enough to handle 50 concurrent users with headroom
         .max_size(50)
-        .min_idle(Some(5))
-        // Fail fast if the pool is exhausted rather than queuing indefinitely
-        .connection_timeout(std::time::Duration::from_secs(5))
+        // Start with 1 idle connection; pool grows on demand
+        .min_idle(Some(1))
+        // Allow up to 30 s to acquire a connection before failing
+        .connection_timeout(std::time::Duration::from_secs(30))
         // Recycle idle connections to avoid stale sockets after network blips
         .idle_timeout(Some(std::time::Duration::from_secs(600)))
         .build(manager)
@@ -23,10 +24,35 @@ pub fn init_pool(database_url: &str) -> DbPool {
 }
 
 pub fn run_migrations(pool: &DbPool) {
-    let mut conn = pool.get().expect("Failed to get connection for migrations");
-    conn.run_pending_migrations(MIGRATIONS)
-        .expect("Failed to run migrations");
-    info!("Database migrations applied successfully");
+    const MAX_ATTEMPTS: u32 = 20;
+    const RETRY_DELAY_SECS: u64 = 3;
+
+    for attempt in 1..=MAX_ATTEMPTS {
+        match pool.get() {
+            Ok(mut conn) => {
+                conn.run_pending_migrations(MIGRATIONS)
+                    .expect("Failed to run migrations");
+                info!("Database migrations applied successfully");
+                return;
+            }
+            Err(e) if attempt < MAX_ATTEMPTS => {
+                warn!(
+                    attempt,
+                    max_attempts = MAX_ATTEMPTS,
+                    retry_delay_secs = RETRY_DELAY_SECS,
+                    error = %e,
+                    "DB not ready — retrying"
+                );
+                std::thread::sleep(std::time::Duration::from_secs(RETRY_DELAY_SECS));
+            }
+            Err(e) => {
+                panic!(
+                    "Failed to connect to database after {} attempts: {}",
+                    MAX_ATTEMPTS, e
+                );
+            }
+        }
+    }
 }
 
 /// Idempotent seed: inserts the minimum set of development/test users on first

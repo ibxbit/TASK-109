@@ -46,15 +46,16 @@ ok()     { echo -e "${GREEN}✓ $*${NC}"; }
 err()    { echo -e "${RED}✗ $*${NC}"; }
 
 # ── Dependency checks ────────────────────────────────────────────────────────
-for cmd in curl jq docker; do
-    if ! command -v "$cmd" &>/dev/null; then
-        err "Required command not found: $cmd"
-        echo "  Install it and re-run this script."
+# Outside Docker: only docker is required (everything else runs inside the
+# container).  Inside Docker (/.dockerenv present) or with --no-start, the
+# test tools must already be available in the current environment.
+if [ ! -f /.dockerenv ] && [ "$NO_START" = false ]; then
+    if ! command -v docker &>/dev/null; then
+        err "docker is required to run tests"
+        echo "  Install Docker and re-run this script."
         exit 1
     fi
-done
 
-if [ ! -f /.dockerenv ] && [ "$NO_START" = false ]; then
     banner "Delegating to Docker Test Runner"
     # Ensure all services are up
     if ! docker compose -f "$COMPOSE_FILE" up -d --build; then
@@ -69,6 +70,15 @@ if [ ! -f /.dockerenv ] && [ "$NO_START" = false ]; then
     fi
     exit 0
 fi
+
+# Inside Docker or --no-start: verify the tools needed for test execution
+for cmd in curl jq; do
+    if ! command -v "$cmd" &>/dev/null; then
+        err "Required command not found: $cmd"
+        echo "  This script must run inside the Docker test container."
+        exit 1
+    fi
+done
 
 # ── Start stack ───────────────────────────────────────────────────────────────
 if [ "$NO_START" = false ]; then

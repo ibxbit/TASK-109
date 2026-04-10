@@ -25,16 +25,16 @@ services:
   # ── PostgreSQL ──────────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
+    container_name: vitalpath-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER:     ${POSTGRES_USER:-vitalpath}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vitalpath_secret}
-      POSTGRES_DB:       ${POSTGRES_DB:-vitalpath_db}
-      LANG:              en_US.utf8
+      POSTGRES_USER:     vitalpath
+      POSTGRES_PASSWORD: vitalpath_secret
+      POSTGRES_DB:       vitalpath_db
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vitalpath} -d ${POSTGRES_DB:-vitalpath_db}"]
+      test: ["CMD-SHELL", "pg_isready -U vitalpath -d vitalpath_db"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -48,31 +48,32 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: vitalpath-app
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-vitalpath}:${POSTGRES_PASSWORD:-vitalpath_secret}@db:5432/${POSTGRES_DB:-vitalpath_db}
+      DATABASE_URL: postgres://vitalpath:vitalpath_secret@db:5432/vitalpath_db
 
       # JWT signing key — generate: openssl rand -base64 32
-      JWT_SECRET: ${JWT_SECRET:-change_me_in_production_min_32_chars!!}
+      JWT_SECRET: "change_me_in_production_min_32_chars!!"
 
       # AES-256-GCM field-level encryption key (base64, 32 bytes)
       # Generate: openssl rand -base64 32
-      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+      FIELD_ENCRYPTION_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
       # HMAC signing secret — generate: openssl rand -hex 32
-      HMAC_SECRET: ${HMAC_SECRET:-change_me_in_production_use_openssl_rand_hex_32}
+      HMAC_SECRET: "change_me_in_production_use_openssl_rand_hex_32"
 
       # Directory for analytics export files (mounted volume)
       EXPORTS_DIR: /exports
 
-      RUST_LOG: ${RUST_LOG:-info}
-      HOST:     ${HOST:-0.0.0.0}
-      PORT:     ${PORT:-8080}
+      RUST_LOG: info
+      HOST:     0.0.0.0
+      PORT:     8080
     ports:
-      - "${PORT:-8080}:${PORT:-8080}"
+      - "8080:8080"
     volumes:
       - exports_data:/exports
     healthcheck:
@@ -95,19 +96,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backup
+    container_name: vitalpath-backup
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-vitalpath}:${POSTGRES_PASSWORD:-vitalpath_secret}@db:5432/${POSTGRES_DB:-vitalpath_db}
+      DATABASE_URL: postgres://vitalpath:vitalpath_secret@db:5432/vitalpath_db
 
       # AES-256-CBC passphrase for backup encryption
       # Generate: openssl rand -hex 32
-      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-change_me_generate_with_openssl_rand_hex_32}
+      BACKUP_ENCRYPTION_KEY: "change_me_generate_with_openssl_rand_hex_32"
 
       BACKUP_DIR:   /backups
-      RETAIN_DAYS:  ${RETAIN_DAYS:-30}
+      RETAIN_DAYS:  30
     volumes:
       - backup_data:/backups
 
@@ -116,6 +118,7 @@ services:
   # This avoids dependencies on local tools (bash, curl, jq) in the environment.
   tester:
     image: alpine:3.19
+    container_name: vitalpath-tester
     depends_on:
       app:
         condition: service_started

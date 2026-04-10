@@ -17,16 +17,24 @@ mod security;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Write to stderr immediately — stderr is unbuffered, so this survives even
+    // if the process is killed before stdout can be flushed (e.g. OOM-SIGKILL).
+    eprintln!("[vitalpath] process started");
+
     // Structured JSON logging
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .with(tracing_subscriber::fmt::layer().json())
         .init();
 
+    eprintln!("[vitalpath] loading config");
     let cfg = config::AppConfig::from_env();
+    eprintln!("[vitalpath] initialising DB pool");
     let pool = db::init_pool(&cfg.database_url);
 
+    eprintln!("[vitalpath] running migrations");
     db::run_migrations(&pool);
+    eprintln!("[vitalpath] seeding initial data");
     db::seed_initial_data(&pool);
 
     // Ensure exports directory exists
@@ -53,6 +61,7 @@ async fn main() -> std::io::Result<()> {
     let token_user_cache      = security::rate_limit::new_token_user_cache();
     let token_user_cache_data = web::Data::new(token_user_cache.clone());
 
+    eprintln!("[vitalpath] binding HTTP server on {}:{}", cfg.host, cfg.port);
     info!(host = %cfg.host, port = cfg.port, "VitalPath starting");
 
     let pool = web::Data::new(pool);

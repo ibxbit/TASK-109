@@ -2,13 +2,13 @@
 
 A secure, offline-capable health operations backend built with Rust (Actix-web 4), PostgreSQL 16, and Docker.
 
-### Security Documentation
+### Project Documentation
 
 | Document | Purpose |
 |----------|---------|
-| [`docs/SECURITY_EVIDENCE.md`](docs/SECURITY_EVIDENCE.md) | Static evidence for field encryption, key rotation, backup/restore, and audit trail — primary reference for security audits |
-| [`docs/audit_event_catalog.md`](docs/audit_event_catalog.md) | Complete catalog of all 33 audit events with schema, source locations, and sample JSON |
-| [`docs/sample_artifacts/`](docs/sample_artifacts/) | Representative output samples: backup manifest, drill log, drill history, audit log entries, key rotation log |
+| [`docs/api-spec.md`](docs/api-spec.md) | Comprehensive API endpoint reference |
+| [`docs/design.md`](docs/design.md) | High-level system architecture and security design |
+| [`docs/questions.md`](docs/questions.md) | Project Q&A and design rationale |
 
 ---
 

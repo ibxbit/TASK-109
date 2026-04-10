@@ -1,3 +1,4 @@
+use argon2::{Algorithm, Argon2, Params, Version};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
@@ -30,12 +31,19 @@ pub fn run_migrations(pool: &DbPool) {
     for attempt in 1..=MAX_ATTEMPTS {
         match pool.get() {
             Ok(mut conn) => {
-                conn.run_pending_migrations(MIGRATIONS)
-                    .expect("Failed to run migrations");
-                info!("Database migrations applied successfully");
-                return;
+                match conn.run_pending_migrations(MIGRATIONS) {
+                    Ok(_) => {
+                        info!("Database migrations applied successfully");
+                        return;
+                    }
+                    Err(e) => {
+                        eprintln!("[vitalpath] FATAL: migration failed: {e}");
+                        panic!("Failed to run migrations: {e}");
+                    }
+                }
             }
             Err(e) if attempt < MAX_ATTEMPTS => {
+                eprintln!("[vitalpath] DB not ready (attempt {attempt}/{MAX_ATTEMPTS}): {e}");
                 warn!(
                     attempt,
                     max_attempts = MAX_ATTEMPTS,
@@ -46,6 +54,7 @@ pub fn run_migrations(pool: &DbPool) {
                 std::thread::sleep(std::time::Duration::from_secs(RETRY_DELAY_SECS));
             }
             Err(e) => {
+                eprintln!("[vitalpath] FATAL: could not connect to DB after {MAX_ATTEMPTS} attempts: {e}");
                 panic!(
                     "Failed to connect to database after {} attempts: {}",
                     MAX_ATTEMPTS, e
@@ -87,16 +96,34 @@ pub fn seed_initial_data(pool: &DbPool) {
 
     info!("Seeding initial users…");
 
-    // Hash passwords using the app's Argon2id implementation.
-    // Argon2 output contains only: $, alphanumeric, /, +, = — safe in SQL literals.
-    let admin_hash    = crate::auth::passwords::hash("Admin1234!")
-        .expect("seed: hash admin password");
-    let coach_hash    = crate::auth::passwords::hash("Coach1234!")
-        .expect("seed: hash coach password");
-    let approver_hash = crate::auth::passwords::hash("Approver1234!")
-        .expect("seed: hash approver password");
-    let member_hash   = crate::auth::passwords::hash("Member1234!")
-        .expect("seed: hash member password");
+    // Use reduced Argon2id params for test seeds (m=4 MiB instead of 64 MiB).
+    // The default 64 MiB allocation risks OOM in memory-constrained environments.
+    // PHC strings include the params, so verify() reads them correctly.
+    let seed_params = match Params::new(4096, 3, 1, None) {
+        Ok(p) => p,
+        Err(e) => {
+            warn!("seed_initial_data: failed to build Argon2 params — {e}; skipping seed");
+            return;
+        }
+    };
+    let seed_argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, seed_params);
+
+    let hash_seed = |password: &str| -> Option<String> {
+        use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
+        let salt = SaltString::generate(&mut OsRng);
+        match seed_argon2.hash_password(password.as_bytes(), &salt) {
+            Ok(h) => Some(h.to_string()),
+            Err(e) => {
+                warn!("seed_initial_data: failed to hash password — {e}; skipping seed");
+                None
+            }
+        }
+    };
+
+    let admin_hash    = match hash_seed("Admin1234!")    { Some(h) => h, None => return };
+    let coach_hash    = match hash_seed("Coach1234!")    { Some(h) => h, None => return };
+    let approver_hash = match hash_seed("Approver1234!") { Some(h) => h, None => return };
+    let member_hash   = match hash_seed("Member1234!")   { Some(h) => h, None => return };
 
     let stmts: &[String] = &[
         // ── Org unit ─────────────────────────────────────────

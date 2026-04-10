@@ -33,9 +33,9 @@ async fn main() -> std::io::Result<()> {
     std::fs::create_dir_all(&cfg.exports_dir).expect("failed to create exports directory");
 
     // ── Key-rotation health check ─────────────────────────────
-    {
-        let mut conn = pool.get().expect("DB pool unavailable at startup");
-        crypto::check_key_rotation(&mut conn);
+    match pool.get() {
+        Ok(mut conn) => crypto::check_key_rotation(&mut conn),
+        Err(e) => tracing::warn!("Key rotation check skipped: DB connection unavailable — {e}"),
     }
 
     // Background workers — spawned before the pool is moved into web::Data

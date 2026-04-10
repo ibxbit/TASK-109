@@ -8,6 +8,15 @@ use crate::metrics::{estimate_p95_ms, update_pool_gauges};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(health_check);
+    cfg.service(liveness_check);
+}
+
+/// Simple liveness check — returns 200 as long as the process is running.
+/// Used by Docker's health check so the container becomes "healthy" once
+/// the HTTP server is up, independent of database connectivity.
+#[get("/healthz")]
+async fn liveness_check() -> HttpResponse {
+    HttpResponse::Ok().json(json!({"status": "ok"}))
 }
 
 #[get("/health")]

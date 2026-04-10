@@ -76,11 +76,11 @@ services:
     volumes:
       - exports_data:/exports
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/health"]
-      start_period: 60s
-      interval: 10s
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/healthz"]
+      start_period: 30s
+      interval: 5s
       timeout: 5s
-      retries: 30 # 5 minutes total after start_period
+      retries: 60 # 5 minutes total after start_period
 
   # ── Backup service ──────────────────────────────────────────────────────────
   # Cron schedule (UTC):
@@ -118,7 +118,7 @@ services:
     image: alpine:3.19
     depends_on:
       app:
-        condition: service_healthy
+        condition: service_started
     environment:
       BASE_URL: http://app:8080
     volumes:

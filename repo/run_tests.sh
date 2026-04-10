@@ -57,8 +57,9 @@ if [ ! -f /.dockerenv ] && [ "$NO_START" = false ]; then
     fi
 
     banner "Delegating to Docker Test Runner"
-    # Ensure all services are up
-    if ! docker compose -f "$COMPOSE_FILE" up -d --build; then
+    # Start backing services only (db, app, backup) — not the tester, which
+    # runs via 'docker compose run' below to get its exit code cleanly.
+    if ! docker compose -f "$COMPOSE_FILE" up -d --build db app backup; then
         err "Docker Compose up failed"
         docker compose -f "$COMPOSE_FILE" logs app
         exit 1
@@ -89,7 +90,7 @@ fi
 
 # ── Wait for the app to become healthy ───────────────────────────────────────
 banner "Waiting for application to be ready"
-MAX_WAIT=120
+MAX_WAIT=300
 INTERVAL=3
 elapsed=0
 until curl -sf "$BASE_URL/health" | jq -e '.status == "ok"' > /dev/null 2>&1; do

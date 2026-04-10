@@ -24,6 +24,40 @@ pub fn init_pool(database_url: &str) -> DbPool {
         .expect("Failed to create database connection pool")
 }
 
+/// Lightweight DB connectivity check — tries to acquire a connection from the
+/// pool and verifies the database is reachable before migrations are attempted.
+/// Retries up to MAX_ATTEMPTS times; panics if the database never responds.
+pub fn wait_for_db(pool: &DbPool) {
+    const MAX_ATTEMPTS: u32 = 20;
+    const RETRY_DELAY_SECS: u64 = 3;
+
+    for attempt in 1..=MAX_ATTEMPTS {
+        match pool.get() {
+            Ok(_) => {
+                eprintln!("[vitalpath] database ready (attempt {attempt}/{MAX_ATTEMPTS})");
+                info!("Database connectivity confirmed");
+                return;
+            }
+            Err(e) if attempt < MAX_ATTEMPTS => {
+                eprintln!("[vitalpath] DB not ready (attempt {attempt}/{MAX_ATTEMPTS}): {e}");
+                warn!(
+                    attempt,
+                    max_attempts = MAX_ATTEMPTS,
+                    error = %e,
+                    "DB not ready — retrying"
+                );
+                std::thread::sleep(std::time::Duration::from_secs(RETRY_DELAY_SECS));
+            }
+            Err(e) => {
+                eprintln!(
+                    "[vitalpath] FATAL: database not available after {MAX_ATTEMPTS} attempts: {e}"
+                );
+                panic!("Database not available after {MAX_ATTEMPTS} attempts: {e}");
+            }
+        }
+    }
+}
+
 pub fn run_migrations(pool: &DbPool) {
     const MAX_ATTEMPTS: u32 = 20;
     const RETRY_DELAY_SECS: u64 = 3;

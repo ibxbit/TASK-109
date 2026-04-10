@@ -45,7 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY --from=builder /app/target/release/vitalpath ./vitalpath
-RUN chown vitalpath:vitalpath ./vitalpath
+RUN chmod +x ./vitalpath && chown vitalpath:vitalpath ./vitalpath
 
 # Exports directory — mount exports_data volume here at runtime
 RUN mkdir -p /exports && chown vitalpath:vitalpath /exports

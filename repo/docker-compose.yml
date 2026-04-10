@@ -48,7 +48,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: vitalpath-app
     restart: unless-stopped
     depends_on:
       db:
@@ -80,8 +79,8 @@ services:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/healthz"]
       start_period: 30s
       interval: 5s
-      timeout: 5s
-      retries: 60 # 5 minutes total after start_period
+      timeout: 10s
+      retries: 30
 
   # ── Backup service ──────────────────────────────────────────────────────────
   # Cron schedule (UTC):
@@ -96,7 +95,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backup
-    container_name: vitalpath-backup
     restart: unless-stopped
     depends_on:
       db:
@@ -118,7 +116,6 @@ services:
   # This avoids dependencies on local tools (bash, curl, jq) in the environment.
   tester:
     image: alpine:3.19
-    container_name: vitalpath-tester
     depends_on:
       app:
         condition: service_started

@@ -171,7 +171,18 @@ async fn post_metric(
     }
 
     // 3. Per-type value range check
-    validate_metric_value(&body.metric_type, body.value)?;
+    // Accept boundary values as valid (inclusive)
+    let entry = crate::models::metric::METRIC_CATALOGUE
+        .iter()
+        .find(|(n, _, _, _)| *n == body.metric_type)
+        .ok_or_else(|| AppError::BadRequest(format!("Unknown metric type: {}", body.metric_type)))?;
+    let (_, _, min, max) = entry;
+    if body.value < *min || body.value > *max {
+        return Err(AppError::BadRequest(format!(
+            "'{}' value must be between {:.1} and {:.1} (got {:.2})",
+            body.metric_type, min, max, body.value
+        )));
+    }
 
     // 4. Parse entry_date; default to today UTC
     let entry_date = match &body.entry_date {
@@ -225,51 +236,52 @@ async fn post_metric(
             .values(&new_entry)
             .execute(&mut conn)
         {
-            Ok(_) => {}
+            Ok(_) => {
+                // 8. Audit
+                audit_log::insert(
+                    &mut conn,
+                    NewAuditLog::new(
+                        Some(actor_id),
+                        "METRIC_ENTRY_CREATED",
+                        "metric_entry",
+                        Some(new_entry.id),
+                        ip,
+                    )
+                    .with_new_value(serde_json::json!({
+                        "member_id":   member_id,
+                        "metric_type": metric_type,
+                        "value":       value,
+                        "entry_date":  entry_date.to_string(),
+                    })),
+                );
+                Ok(MetricEntryResponse {
+                    id:          new_entry.id,
+                    member_id:   new_entry.member_id,
+                    metric_type: mt.name,
+                    unit:        mt.unit,
+                    value:       new_entry.value,
+                    entry_date:  new_entry.entry_date,
+                    recorded_by: new_entry.recorded_by,
+                    notes:       new_entry.notes,
+                    created_at:  new_entry.created_at,
+                })
+            }
             Err(ref e) if is_unique_violation(e) => {
                 return Err(AppError::Conflict(format!(
-                    "A '{}' entry already exists for member {} on {}",
-                    metric_type, member_id, entry_date
+                    "A metric entry for '{}' already exists for this member on {}",
+                    metric_type,
+                    entry_date
                 )));
             }
-            Err(e) => return Err(AppError::Database(e)),
+            Err(e) => Err(AppError::Database(e)),
         }
-
-        // 8. Audit
-        audit_log::insert(
-            &mut conn,
-            NewAuditLog::new(
-                Some(actor_id),
-                "METRIC_ENTRY_CREATED",
-                "metric_entry",
-                Some(new_entry.id),
-                ip,
-            )
-            .with_new_value(serde_json::json!({
-                "member_id":   member_id,
-                "metric_type": metric_type,
-                "value":       value,
-                "entry_date":  entry_date.to_string(),
-            })),
-        );
-
-        Ok(MetricEntryResponse {
-            id:          new_entry.id,
-            member_id:   new_entry.member_id,
-            metric_type: mt.name,
-            unit:        mt.unit,
-            value:       new_entry.value,
-            entry_date:  new_entry.entry_date,
-            recorded_by: new_entry.recorded_by,
-            notes:       new_entry.notes,
-            created_at:  new_entry.created_at,
-        })
     })
     .await
     .map_err(|_| AppError::Internal(anyhow::anyhow!("Thread pool error")))??;
 
     Ok(HttpResponse::Created().json(response))
 }
+
 
 // ── GET /metrics ──────────────────────────────────────────────
 //

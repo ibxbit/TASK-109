@@ -14,13 +14,13 @@ echo "▶  [API] Rate limiting, lockout, and CAPTCHA"
 
 # ── Prerequisite: docker must be available for test-user setup ──
 DOCKER_AVAILABLE=false
-if command -v docker &>/dev/null && docker compose ps &>/dev/null 2>&1; then
+if command -v docker &>/dev/null && (docker compose ps &>/dev/null || docker-compose ps &>/dev/null); then
     DOCKER_AVAILABLE=true
 fi
 
 # ── Helper: insert/reset test users via psql ─────────────────
 psql_exec() {
-    docker compose exec -T db psql -U vitalpath -d vitalpath_db -c "$1" 2>/dev/null
+    PGPASSWORD=vitalpath_secret psql -h db -U vitalpath -d vitalpath_db -t -A -c "$1" 2>/dev/null
 }
 
 # =============================================================================
@@ -36,7 +36,8 @@ ADMIN_TOKEN=$(login "$ADMIN_USER" "$ADMIN_PASS")
 # Fire 62 rapid requests with the same token; the 61st+ should be rate-limited
 RATE_HIT=false
 RATE_HIT_AT=0
-for i in $(seq 1 62); do
+RATE_LIMIT_EXPECTED=60
+for i in $(seq 1 $((RATE_LIMIT_EXPECTED + 2))); do
     STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
         -H "Authorization: Bearer $ADMIN_TOKEN" \
         "$BASE_URL/health")
@@ -50,7 +51,7 @@ done
 if $RATE_HIT; then
     pass "Rate limit triggered at request #$RATE_HIT_AT (HTTP 429)"
 else
-    fail "Rate limit NOT triggered after 62 requests (expected 429 after 60)"
+    fail "Rate limit NOT triggered after $((RATE_LIMIT_EXPECTED + 2)) requests (expected 429 after $RATE_LIMIT_EXPECTED)"
 fi
 
 # Verify 429 response body shape and Retry-After header
@@ -184,8 +185,7 @@ if $DOCKER_AVAILABLE; then
 
     # Use psql to create the user with a known-good Argon2 hash from admin
     # We'll borrow the admin's hash since we know admin login works
-    ADMIN_HASH=$(psql_exec "SELECT password_hash FROM users WHERE username='admin';" \
-        | grep -v "password_hash\|---\|row" | tr -d ' \r\n') || ADMIN_HASH=""
+    ADMIN_HASH=$(psql_exec "SELECT password_hash FROM users WHERE username='admin';")
 
     if [ -n "$ADMIN_HASH" ]; then
         psql_exec "

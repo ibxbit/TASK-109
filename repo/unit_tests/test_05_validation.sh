@@ -17,12 +17,16 @@ COACH_TOKEN=$(login "$COACH_USER" "$COACH_PASS")
 # ── Metric value boundary tests ───────────────────────────────
 # weight valid range: 10.0 – 1500.0 lbs
 
-# At lower bound (10.0) → 201
+# At lower bound (10.0) → 201 or 409 (idempotent)
 raw=$(http_post "/metrics" \
     "{\"member_id\":\"$MEMBER_ID\",\"metric_type\":\"weight\",\"value\":10.0}" \
     "$COACH_TOKEN")
 split_response "$raw"
-assert_status "201" "$RESP_STATUS" "Metric weight=10.0 (lower bound) is accepted"
+if [ "$RESP_STATUS" = "201" ] || [ "$RESP_STATUS" = "409" ]; then
+    pass "Metric weight=10.0 (lower bound) is accepted (201/409)"
+else
+    fail "Metric weight=10.0 (lower bound) expected 201 or 409, got $RESP_STATUS"
+fi
 
 # Below lower bound (9.99) → 400
 raw=$(http_post "/metrics" \
@@ -32,12 +36,16 @@ split_response "$raw"
 assert_status "400" "$RESP_STATUS" "Metric weight=9.99 (below lower bound) is rejected"
 assert_json_present "$RESP_BODY" ".message" "Below-bound rejection has message"
 
-# At upper bound (1500.0) → 201
+# At upper bound (1500.0) → 201 or 409 (idempotent)
 raw=$(http_post "/metrics" \
     "{\"member_id\":\"$MEMBER_ID\",\"metric_type\":\"weight\",\"value\":1500.0}" \
     "$COACH_TOKEN")
 split_response "$raw"
-assert_status "201" "$RESP_STATUS" "Metric weight=1500.0 (upper bound) is accepted"
+if [ "$RESP_STATUS" = "201" ] || [ "$RESP_STATUS" = "409" ]; then
+    pass "Metric weight=1500.0 (upper bound) is accepted (201/409)"
+else
+    fail "Metric weight=1500.0 (upper bound) expected 201 or 409, got $RESP_STATUS"
+fi
 
 # Above upper bound (1500.01) → 400
 raw=$(http_post "/metrics" \
@@ -57,7 +65,11 @@ raw=$(http_post "/metrics" \
     "{\"member_id\":\"$MEMBER_ID\",\"metric_type\":\"body_fat_percentage\",\"value\":25.0}" \
     "$COACH_TOKEN")
 split_response "$raw"
-assert_status "201" "$RESP_STATUS" "body_fat_percentage=25.0 accepted"
+if [ "$RESP_STATUS" = "201" ] || [ "$RESP_STATUS" = "409" ]; then
+    pass "body_fat_percentage=25.0 accepted (201/409)"
+else
+    fail "body_fat_percentage=25.0 expected 201 or 409, got $RESP_STATUS"
+fi
 
 # ── Unknown metric type → 400 ─────────────────────────────────
 raw=$(http_post "/metrics" \

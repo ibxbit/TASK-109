@@ -151,7 +151,7 @@ pub struct HealthProfileResponse {
     pub date_of_birth: NaiveDate,
     pub sex: String,
     pub height_in: f64,
-    pub weight_lbs: f64,
+    pub weight_lbs: String,
     pub activity_level: String,
     /// Decrypted at read time; never stored in plaintext.
     pub dietary_notes: Option<String>,

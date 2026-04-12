@@ -115,7 +115,7 @@ impl FromRequest for AuthenticatedUser {
             let valid = web::block(move || {
                 let mut conn = pool
                     .get()
-                    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+                    .map_err(|e: r2d2::Error| AppError::Internal(anyhow::anyhow!(e)))?;
                 service::validate_and_slide(&mut conn, &token)
             })
             .await

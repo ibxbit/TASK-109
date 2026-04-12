@@ -70,6 +70,7 @@ services:
       RUST_LOG: info
       HOST:     0.0.0.0
       PORT:     8080
+      RATE_LIMIT_MAX: 60
     ports:
       - "8080:8080"
     volumes:
@@ -114,7 +115,10 @@ services:
   # Used by run_tests.sh to execute the test suite within the Docker network.
   # This avoids dependencies on local tools (bash, curl, jq) in the environment.
   tester:
-    image: alpine:3.19
+    build:
+      context: .
+      dockerfile: Dockerfile.tester
+    platform: linux/amd64
     depends_on:
       app:
         condition: service_started
@@ -124,8 +128,6 @@ services:
       - .:/repo
       - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /repo
-    entrypoint: /bin/sh
-    command: -c "apk add --no-cache bash curl jq bc postgresql-client docker-cli docker-cli-compose && ./run_tests.sh --no-start"
 
 # =============================================================================
 # Named volumes — all data stays on the local Docker host (fully offline).

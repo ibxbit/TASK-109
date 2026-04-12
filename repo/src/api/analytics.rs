@@ -283,13 +283,14 @@ fn compute_cancellations(
     conn: &mut PgConnection,
     f: &ResolvedFilter,
 ) -> Result<CancellationMetrics, AppError> {
-    let count_wi_status = |status: &str| -> Result<i64, AppError> {
+
+    fn count_wi_status(conn: &mut PgConnection, f: &ResolvedFilter, status: &str) -> Result<i64, AppError> {
         let mut q = workflow_instances::table
             .filter(workflow_instances::status.eq(status))
             .into_boxed();
         apply_time_filter!(q, workflow_instances::created_at, f);
         q.count().get_result::<i64>(conn).map_err(AppError::Database)
-    };
+    }
 
     let work_orders_closed: i64 = {
         let mut q = work_orders::table
@@ -310,9 +311,9 @@ fn compute_cancellations(
 
     Ok(CancellationMetrics {
         work_orders_closed,
-        workflow_rejections:   count_wi_status("rejected")?,
-        workflow_withdrawals:  count_wi_status("withdrawn")?,
-        workflow_cancellations: count_wi_status("cancelled")?,
+        workflow_rejections:   count_wi_status(conn, f, "rejected")?,
+        workflow_withdrawals:  count_wi_status(conn, f, "withdrawn")?,
+        workflow_cancellations: count_wi_status(conn, f, "cancelled")?,
         approval_rejections,
     })
 }
@@ -504,8 +505,8 @@ fn report_to_xlsx(r: &AnalyticsReport, path: &str) -> Result<(), AppError> {
             ("Period End",   r.period.end.as_str()),
         ];
         for (i, (k, v)) in meta.iter().enumerate() {
-            ws.write_string_with_format(i as u32, 0, k, &bold)
-                .and_then(|ws| ws.write_string(i as u32, 1, v))
+            ws.write_string_with_format(i as u32, 0, *k, &bold)
+                .and_then(|ws| ws.write_string(i as u32, 1, *v))
                 .map_err(|e| AppError::Internal(anyhow::anyhow!("xlsx: {}", e)))?;
         }
         let row = meta.len() as u32;
@@ -593,7 +594,7 @@ fn report_to_xlsx(r: &AnalyticsReport, path: &str) -> Result<(), AppError> {
             ("Goal Adoption Rate %",       c.goal_adoption_rate),
         ];
         for (i, (label, val)) in rows.iter().enumerate() {
-            ws.write_string((i + 1) as u32, 0, label)
+            ws.write_string((i + 1) as u32, 0, *label)
                 .and_then(|ws| ws.write_number((i + 1) as u32, 1, *val))
                 .map_err(|e| AppError::Internal(anyhow::anyhow!("xlsx: {}", e)))?;
         }
@@ -621,7 +622,7 @@ fn report_to_xlsx(r: &AnalyticsReport, path: &str) -> Result<(), AppError> {
         ];
         let mut row = 1u32;
         for (label, val) in scalar_rows {
-            ws.write_string(row, 0, label)
+            ws.write_string(row, 0, *label)
                 .and_then(|ws| ws.write_number(row, 1, *val))
                 .map_err(|e| AppError::Internal(anyhow::anyhow!("xlsx: {}", e)))?;
             row += 1;
@@ -658,7 +659,7 @@ fn report_to_xlsx(r: &AnalyticsReport, path: &str) -> Result<(), AppError> {
             ("Approval Rejections",         can.approval_rejections),
         ];
         for (i, (label, val)) in rows.iter().enumerate() {
-            ws.write_string((i + 1) as u32, 0, label)
+            ws.write_string((i + 1) as u32, 0, *label)
                 .and_then(|ws| ws.write_number((i + 1) as u32, 1, *val as f64))
                 .map_err(|e| AppError::Internal(anyhow::anyhow!("xlsx: {}", e)))?;
         }
@@ -686,7 +687,7 @@ fn report_to_xlsx(r: &AnalyticsReport, path: &str) -> Result<(), AppError> {
         let mut row = 1u32;
         for (category, items) in sections {
             for item in *items {
-                ws.write_string(row, 0, category)
+                ws.write_string(row, 0, *category)
                     .and_then(|ws| ws.write_string(row, 1, &item.label))
                     .and_then(|ws| ws.write_number(row, 2, item.count as f64))
                     .map_err(|e| AppError::Internal(anyhow::anyhow!("xlsx: {}", e)))?;
@@ -774,7 +775,7 @@ async fn get_analytics(
         Ok::<_, AppError>(report)
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    .map_err(|e: actix_web::error::BlockingError| AppError::Internal(anyhow::anyhow!(e)))??;
 
     Ok(HttpResponse::Ok().json(report))
 }
@@ -895,7 +896,7 @@ async fn export_analytics(
         })
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    .map_err(|e: actix_web::error::BlockingError| AppError::Internal(anyhow::anyhow!(e)))??;
 
     info!(
         actor  = %masked_actor,
@@ -943,10 +944,10 @@ async fn download_export(
 
     let bytes = tokio::task::spawn_blocking(move || {
         std::fs::read(&file_path_owned)
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("read export file: {}", e)))
+            .map_err(|e: std::io::Error| AppError::Internal(anyhow::anyhow!("read export file: {}", e)))
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    .map_err(|e: tokio::task::JoinError| AppError::Internal(anyhow::anyhow!(e)))??;
 
     let content_type = if filename.ends_with(".csv") {
         "text/csv; charset=utf-8"

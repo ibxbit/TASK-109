@@ -2429,6 +2429,7 @@ dependencies = [
  "hex",
  "hmac",
  "jsonwebtoken",
+ "log",
  "prometheus",
  "r2d2",
  "rand 0.8.5",

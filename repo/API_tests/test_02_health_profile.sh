@@ -68,7 +68,7 @@ assert_json_field "$RESP_BODY" ".activity_level" "very_active" "activity_level u
 # ── Step 5: Verify update persisted ──────────────────────────
 raw=$(http_get "/profile/$MEMBER_ID" "$COACH_TOKEN")
 split_response "$raw"
-assert_json_field "$RESP_BODY" ".weight_lbs"     "170"         "Updated weight persisted"
+assert_json_field "$RESP_BODY" ".weight_lbs"     "170.0"       "Updated weight persisted"
 assert_json_field "$RESP_BODY" ".activity_level" "very_active" "Updated activity_level persisted"
 
 # ── Step 6: Duplicate create → 409 ───────────────────────────

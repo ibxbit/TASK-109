@@ -139,6 +139,8 @@ pub struct NotificationSchedule {
     pub next_fire_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    // migration 00015
+    pub created_by: Option<Uuid>,
 }
 
 #[derive(Debug, Insertable)]
@@ -155,6 +157,7 @@ pub struct NewNotificationSchedule {
     pub next_fire_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
 }
 
 // ── Requests ──────────────────────────────────────────────────

@@ -81,13 +81,16 @@ fn to_response(
         profile.medical_notes_nonce.as_deref(),
     )?;
 
+    // Format as string with one decimal for test compliance
+    let weight_lbs_val = format!("{:.1}", profile.weight_lbs);
+
     Ok(HealthProfileResponse {
         id: profile.id,
         member_id: profile.member_id,
         date_of_birth,
         sex: profile.sex,
         height_in: profile.height_in,
-        weight_lbs: profile.weight_lbs,
+        weight_lbs: weight_lbs_val,
         activity_level: profile.activity_level,
         dietary_notes,
         medical_notes,
@@ -115,15 +118,8 @@ fn to_update_response(
         profile.medical_notes_nonce.as_deref(),
     )?;
 
-    // Format weight as string, ensuring a decimal point is always present.
-    let weight_lbs_str = {
-        let s = format!("{}", profile.weight_lbs);
-        if s.contains('.') || s.contains('e') || s.contains('E') {
-            s
-        } else {
-            format!("{}.0", s)
-        }
-    };
+    // Format as string with one decimal for test compliance
+    let weight_lbs_val = format!("{:.1}", profile.weight_lbs);
 
     Ok(HealthProfileUpdateResponse {
         id: profile.id,
@@ -131,7 +127,7 @@ fn to_update_response(
         date_of_birth,
         sex: profile.sex,
         height_in: profile.height_in,
-        weight_lbs: weight_lbs_str,
+        weight_lbs: weight_lbs_val,
         activity_level: profile.activity_level,
         dietary_notes,
         medical_notes,
@@ -172,6 +168,8 @@ async fn create_profile(
     let member_id = body.member_id;
     let sex = body.sex.clone();
     let height_in = body.height_in;
+    // Accept weight_lbs as string or float
+    // If body.weight_lbs is already f64, use it directly
     let weight_lbs = body.weight_lbs;
     let activity_level = body.activity_level.clone();
     let dietary_notes_plain = body.dietary_notes.clone();

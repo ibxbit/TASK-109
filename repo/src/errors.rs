@@ -1,3 +1,4 @@
+use actix_web::body::BoxBody;
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
 use serde::Serialize;
@@ -19,6 +20,9 @@ pub enum AppError {
 
     #[error("Conflict: {0}")]
     Conflict(String),
+
+    #[error("Conflict with data")]
+    ConflictWithData(serde_json::Value),
 
     #[error("Too many requests: {0}")]
     TooManyRequests(String),
@@ -44,17 +48,25 @@ impl ResponseError for AppError {
             AppError::Forbidden => StatusCode::FORBIDDEN,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::Conflict(_) => StatusCode::CONFLICT,
+            AppError::ConflictWithData(_) => StatusCode::CONFLICT,
             AppError::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             AppError::Internal(_) | AppError::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
     fn error_response(&self) -> HttpResponse {
-        let status = self.status_code();
-        let body = ErrorBody {
-            error: status.canonical_reason().unwrap_or("error").to_string(),
-            message: self.to_string(),
-        };
-        HttpResponse::build(status).json(body)
+        match self {
+            AppError::ConflictWithData(data) => {
+                HttpResponse::build(StatusCode::CONFLICT).json(data)
+            }
+            _ => {
+                let status = self.status_code();
+                let body = ErrorBody {
+                    error: status.canonical_reason().unwrap_or("error").to_string(),
+                    message: self.to_string(),
+                };
+                HttpResponse::build(status).json(body)
+            }
+        }
     }
 }

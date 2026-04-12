@@ -572,7 +572,7 @@ async fn start_workflow(
         let mut conn = pool.get().map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
         // Template must be active
-        let tpl: WorkflowTemplate = workflow_templates::table
+        let _tpl: WorkflowTemplate = workflow_templates::table
             .filter(workflow_templates::id.eq(template_id))
             .filter(workflow_templates::is_active.eq(true))
             .select(WorkflowTemplate::as_select())

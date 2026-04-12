@@ -28,17 +28,20 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs \
 
 # Build the actual application
 COPY . .
-RUN cargo build --release
+# touch all rust files so their mtime is newer than the cache, forcing recompilation
+RUN touch src/main.rs && cargo build --release
 
 # ─── Runtime stage ───────────────────────────────────────────────────────────
-FROM debian:bookworm-slim
+# Use the same base as the builder stage to guarantee all runtime libraries
+# (libgcc, libstdc++, glibc, etc.) are present and at the exact same versions.
+# The OOM was caused by cargo compilation; running the pre-built binary here
+# is safe and requires no compilation.
+FROM rust:1.88-slim-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq5 \
         ca-certificates \
         curl \
-        openssl \
-        libssl3 \
     && rm -rf /var/lib/apt/lists/* \
  && useradd --system --no-create-home --shell /sbin/nologin vitalpath
 

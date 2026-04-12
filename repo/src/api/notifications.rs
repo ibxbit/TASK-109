@@ -103,10 +103,10 @@ async fn create_notification(
             );
         }
 
-        Ok(id)
+        Ok::<Option<uuid::Uuid>, AppError>(id)
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    .map_err(|e: actix_web::error::BlockingError| AppError::Internal(anyhow::anyhow!(e)))??;
 
     match notif_id {
         Some(id) => Ok(HttpResponse::Created().json(serde_json::json!({ "id": id }))),
@@ -158,7 +158,7 @@ async fn list_notifications(
             .map_err(AppError::Database)
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    .map_err(|e: actix_web::error::BlockingError| AppError::Internal(anyhow::anyhow!(e)))??;
 
     let body: Vec<NotificationResponse> = items.into_iter().map(NotificationResponse::from).collect();
     Ok(HttpResponse::Ok().json(body))
@@ -248,10 +248,10 @@ async fn mark_all_read(
                 .with_new_value(serde_json::json!({ "marked_count": n })),
         );
 
-        Ok(n)
+        Ok::<usize, AppError>(n)
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    .map_err(|e: actix_web::error::BlockingError| AppError::Internal(anyhow::anyhow!(e)))??;
 
     Ok(HttpResponse::Ok().json(serde_json::json!({ "marked_count": count })))
 }
@@ -279,7 +279,7 @@ async fn list_subscriptions(
             .map_err(AppError::Database)
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    .map_err(|e: actix_web::error::BlockingError| AppError::Internal(anyhow::anyhow!(e)))??;
 
     let body: Vec<SubscriptionResponse> = subs.into_iter().map(SubscriptionResponse::from).collect();
     Ok(HttpResponse::Ok().json(body))
@@ -357,10 +357,10 @@ async fn update_subscription(
             })),
         );
 
-        Ok(sub)
+        Ok::<NotificationSubscription, AppError>(sub)
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    .map_err(|e: actix_web::error::BlockingError| AppError::Internal(anyhow::anyhow!(e)))??;
 
     Ok(HttpResponse::Ok().json(SubscriptionResponse::from(sub)))
 }
@@ -415,6 +415,7 @@ async fn create_schedule(
             next_fire_at:      next_at,
             created_at:        now,
             updated_at:        now,
+            created_by:        Some(actor_id),
         };
 
         let sched: NotificationSchedule = diesel::insert_into(notification_schedules::table)
@@ -436,10 +437,10 @@ async fn create_schedule(
             })),
         );
 
-        Ok(sched)
+        Ok::<NotificationSchedule, AppError>(sched)
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    .map_err(|e: actix_web::error::BlockingError| AppError::Internal(anyhow::anyhow!(e)))??;
 
     Ok(HttpResponse::Created().json(ScheduleResponse::from(sched)))
 }
@@ -468,7 +469,7 @@ async fn list_schedules(
             .map_err(AppError::Database)
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    .map_err(|e: actix_web::error::BlockingError| AppError::Internal(anyhow::anyhow!(e)))??;
 
     let body: Vec<ScheduleResponse> = scheds.into_iter().map(ScheduleResponse::from).collect();
     Ok(HttpResponse::Ok().json(body))
@@ -491,20 +492,29 @@ async fn delete_schedule(
     web::block(move || {
         let mut conn = pool.get().map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-        // Ownership check
-        let owner: Uuid = notification_schedules::table
+        // Ownership check: load the creator of this schedule
+        let (owner_user_id, creator): (Uuid, Option<Uuid>) = notification_schedules::table
             .find(sched_id)
-            .select(notification_schedules::user_id)
+            .select((notification_schedules::user_id, notification_schedules::created_by))
             .first(&mut conn)
             .map_err(|_| AppError::NotFound("schedule not found".into()))?;
 
-        if !is_admin && owner != actor_id {
-            return Err(AppError::Forbidden);
+        // Non-admins can only delete schedules they themselves created.
+        // If created_by is NULL (legacy rows), fall back to user_id check.
+        if !is_admin {
+            let effective_creator = creator.unwrap_or(owner_user_id);
+            if effective_creator != actor_id {
+                return Err(AppError::Forbidden);
+            }
         }
 
-        diesel::delete(notification_schedules::table.find(sched_id))
+        let deleted = diesel::delete(notification_schedules::table.find(sched_id))
             .execute(&mut conn)
             .map_err(AppError::Database)?;
+
+        if deleted == 0 {
+            return Err(AppError::NotFound("schedule not found".into()));
+        }
 
         audit_log::insert(
             &mut conn,
@@ -513,10 +523,10 @@ async fn delete_schedule(
             ),
         );
 
-        Ok(())
+        Ok::<(), AppError>(())
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    .map_err(|e: actix_web::error::BlockingError| AppError::Internal(anyhow::anyhow!(e)))??;
 
     Ok(HttpResponse::NoContent().finish())
 }

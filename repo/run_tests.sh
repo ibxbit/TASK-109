@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # =============================================================================
 # run_tests.sh — VitalPath test runner
 # =============================================================================
@@ -36,7 +36,8 @@ done
 # ── Colours ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
+YELLOW='\033[1;33m'cls
+
 BOLD='\033[1m'
 NC='\033[0m'
 
@@ -59,14 +60,14 @@ if [ ! -f /.dockerenv ] && [ "$NO_START" = false ]; then
     banner "Delegating to Docker Test Runner"
     # Start backing services only (db, app, backup) — not the tester, which
     # runs via 'docker compose run' below to get its exit code cleanly.
-    if ! docker compose -f "$COMPOSE_FILE" up -d --build db app backup; then
+    if ! docker-compose -f "$COMPOSE_FILE" up -d --build db app backup; then
         err "Docker Compose up failed"
-        docker compose -f "$COMPOSE_FILE" logs app
+        docker-compose -f "$COMPOSE_FILE" logs app
         exit 1
     fi
-    if ! docker compose -f "$COMPOSE_FILE" run --rm tester; then
+    if ! docker-compose -f "$COMPOSE_FILE" run --rm tester; then
         err "Test execution failed"
-        docker compose -f "$COMPOSE_FILE" logs app
+        docker-compose -f "$COMPOSE_FILE" logs app
         exit 1
     fi
     exit 0
@@ -84,7 +85,7 @@ done
 # ── Start stack ───────────────────────────────────────────────────────────────
 if [ "$NO_START" = false ]; then
     banner "Starting Docker Compose stack"
-    docker compose -f "$COMPOSE_FILE" up -d --build
+    docker-compose -f "$COMPOSE_FILE" up -d --build
     ok "Stack started"
 fi
 
@@ -111,6 +112,12 @@ API_DIR="$SCRIPT_DIR/API_tests"
 
 # Make all test scripts executable
 find "$UNIT_DIR" "$API_DIR" -name "*.sh" -exec chmod +x {} \;
+chmod +x "$SCRIPT_DIR/db_cleanup.sh"
+
+# ── Clean Database ────────────────────────────────────────────────────────────
+info "Cleaning database..."
+bash "$SCRIPT_DIR/db_cleanup.sh"
+ok "Database ready for tests"
 
 # ── Run tests ─────────────────────────────────────────────────────────────────
 SUITE_PASS=0
@@ -161,7 +168,7 @@ fi
 # ── Teardown ─────────────────────────────────────────────────────────────────
 if [ "$TEARDOWN" = true ]; then
     banner "Tearing down stack"
-    docker compose -f "$COMPOSE_FILE" down
+    docker-compose -f "$COMPOSE_FILE" down
     ok "Stack stopped"
 fi
 

@@ -141,7 +141,7 @@ async fn list_audit_logs(
         Ok::<_, AppError>((rows, total))
     })
     .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))??;
+    .map_err(|e: actix_web::error::BlockingError| AppError::Internal(anyhow::anyhow!(e)))??;
 
     let data: Vec<AuditLogResponse> = rows.into_iter().map(Into::into).collect();
 

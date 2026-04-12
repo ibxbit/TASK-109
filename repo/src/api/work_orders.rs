@@ -170,7 +170,7 @@ async fn create_work_order(
                 })),
         );
 
-        Ok(wo)
+        Ok::<WorkOrder, AppError>(wo)
     })
     .await
     .map_err(|_| AppError::Internal(anyhow::anyhow!("task join error")))??;

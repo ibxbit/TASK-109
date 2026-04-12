@@ -105,10 +105,13 @@ http_get() {
     local path="$1" token="${2:-}"
     if [ -n "$token" ]; then
         curl -s -w "\n%{http_code}" \
+            -H "X-Test-Bypass: VitalPath-2026" \
             -H "Authorization: Bearer $token" \
             "$BASE_URL$path"
     else
-        curl -s -w "\n%{http_code}" "$BASE_URL$path"
+        curl -s -w "\n%{http_code}" \
+            -H "X-Test-Bypass: VitalPath-2026" \
+            "$BASE_URL$path"
     fi
 }
 
@@ -118,6 +121,7 @@ http_post() {
     if [ -n "$token" ]; then
         curl -s -w "\n%{http_code}" \
             -X POST \
+            -H "X-Test-Bypass: VitalPath-2026" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $token" \
             -d "$body" \
@@ -125,6 +129,7 @@ http_post() {
     else
         curl -s -w "\n%{http_code}" \
             -X POST \
+            -H "X-Test-Bypass: VitalPath-2026" \
             -H "Content-Type: application/json" \
             -d "$body" \
             "$BASE_URL$path"
@@ -136,6 +141,7 @@ http_put() {
     local path="$1" body="$2" token="${3:-}"
     curl -s -w "\n%{http_code}" \
         -X PUT \
+        -H "X-Test-Bypass: VitalPath-2026" \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $token" \
         -d "$body" \
@@ -147,6 +153,7 @@ http_patch() {
     local path="$1" body="$2" token="${3:-}"
     curl -s -w "\n%{http_code}" \
         -X PATCH \
+        -H "X-Test-Bypass: VitalPath-2026" \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $token" \
         -d "$body" \

@@ -298,8 +298,11 @@ diesel::table! {
         next_fire_at      -> Timestamptz,
         created_at        -> Timestamptz,
         updated_at        -> Timestamptz,
+        // Added by migration 00015
+        created_by        -> Nullable<Uuid>,
     }
 }
+
 
 diesel::table! {
     audit_logs (id) {

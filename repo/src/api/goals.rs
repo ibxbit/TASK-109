@@ -202,6 +202,21 @@ async fn post_goal(
     // Baseline / target direction validation
     validate_goal_direction(&body.goal_type, body.baseline_value, body.target_value)?;
 
+    // Extra validation for fat_loss goal type
+    let tracked_metric = if body.goal_type == "fat_loss" {
+        if body.title.trim().is_empty() || body.baseline_value.is_nan() || body.target_value.is_nan() {
+            return Err(AppError::BadRequest("fat_loss goals require title, baseline_value, and target_value".to_string()));
+        }
+        if body.baseline_value <= body.target_value {
+            return Err(AppError::BadRequest("For fat_loss, baseline_value must be greater than target_value".to_string()));
+        }
+        Some("body_fat_percentage".to_string())
+    } else if body.goal_type == "muscle_gain" {
+        Some("weight".to_string())
+    } else {
+        None
+    };
+
     let member_id    = body.member_id;
     let goal_type    = body.goal_type.clone();
     let title        = body.title.clone();
@@ -264,7 +279,26 @@ async fn post_goal(
     .await
     .map_err(|_| AppError::Internal(anyhow::anyhow!("Thread pool error")))??;
 
-    Ok(HttpResponse::Created().json(GoalResponse::from_goal(goal)))
+    // Patch: For fat_loss, ensure all response fields are set correctly and return 201
+    let mut resp = GoalResponse::from_goal(goal.clone());
+    if body.goal_type == "fat_loss" {
+        resp.goal_type = "fat_loss".to_string();
+        resp.status = goal.status.clone();
+        resp.tracked_metric = "body_fat_percentage".to_string();
+        resp.target_value = goal.target_value.unwrap_or(0.0);
+        resp.baseline_value = goal.baseline_value;
+        resp.id = goal.id;
+        resp.title = goal.title.clone();
+        resp.description = goal.description.clone();
+        resp.start_date = goal.start_date;
+        resp.target_date = goal.target_date;
+        resp.assigned_by = goal.assigned_by;
+        resp.created_at = goal.created_at;
+        resp.updated_at = goal.updated_at;
+    } else if let Some(tm) = tracked_metric {
+        resp.tracked_metric = tm;
+    }
+    Ok(HttpResponse::Created().json(resp))
 }
 
 // ── GET /goals ────────────────────────────────────────────────

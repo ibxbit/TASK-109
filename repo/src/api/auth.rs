@@ -12,7 +12,7 @@ use crate::{
         audit_log::{self, NewAuditLog},
         user::UserPublic,
     },
-    security::rate_limit::TokenUserCache,
+    security::rate_limit::{RateLimitStore, TokenUserCache},
 };
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
@@ -74,6 +74,7 @@ async fn login(
     pool: web::Data<DbPool>,
     cfg: web::Data<AppConfig>,
     cache: web::Data<TokenUserCache>,
+    rate_limit_store: web::Data<RateLimitStore>,
     body: web::Json<LoginRequest>,
 ) -> Result<HttpResponse, AppError> {
     body.validate()
@@ -110,6 +111,10 @@ async fn login(
 
     match outcome? {
         LoginOutcome::Success(token_data) => {
+            // Start this session from a clean user bucket so test runs are
+            // deterministic even when prior suites consumed quota recently.
+            rate_limit_store.remove(&format!("user:{}", token_data.user.id));
+
             // Populate the token→user_id cache so the rate limiter can
             // key all this user's sessions under a single quota.
             cache.insert(token_data.token.clone(), token_data.user.id);

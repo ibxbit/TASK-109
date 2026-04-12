@@ -24,14 +24,19 @@ pub fn registry() -> &'static Registry {
 
         // Finer buckets around the 300 ms p95 target
         let duration = HistogramVec::new(
-            HistogramOpts::new("http_request_duration_seconds", "HTTP request duration")
-                .buckets(vec![
+            HistogramOpts::new("http_request_duration_seconds", "HTTP request duration").buckets(
+                vec![
                     0.005, 0.010, 0.025, 0.050, 0.075, 0.100, 0.150, 0.200, 0.250, 0.300, 0.400,
                     0.500, 0.750, 1.0, 2.5,
-                ]),
+                ],
+            ),
             &["method", "path"],
         )
         .unwrap();
+
+        // Materialize one histogram label set so scrapes always include this
+        // metric family even before the first real request observation.
+        let _ = duration.with_label_values(&["INIT", "/bootstrap"]);
 
         let errors = IntCounterVec::new(
             Opts::new("http_errors_total", "Total HTTP 4xx/5xx responses"),

@@ -50,6 +50,7 @@ async fn main() -> std::io::Result<()> {
     let rate_limit_store = security::rate_limit::new_store();
     let token_user_cache = security::rate_limit::new_token_user_cache();
     let token_user_cache_data = web::Data::new(token_user_cache.clone());
+    let rate_limit_store_data = web::Data::new(rate_limit_store.clone());
 
     // Shared readiness flag — false until migrations + seeding complete.
     // The /health endpoint returns 503 while this is false so run_tests.sh
@@ -117,6 +118,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(cfg_data.clone())
             .app_data(cipher.clone())
             .app_data(token_user_cache_data.clone())
+            .app_data(rate_limit_store_data.clone())
             .app_data(db_ready_data.clone())
             .wrap(security_headers)
             // Structured request/response tracing

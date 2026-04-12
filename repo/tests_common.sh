@@ -91,7 +91,7 @@ assert_json_ge() {
     local body="$1" expr="$2" min="$3" label="$4"
     local actual
     actual=$(printf '%s' "$body" | jq -r "$expr" 2>/dev/null)
-    if [ "$(echo "$actual >= $min" | bc -l 2>/dev/null)" = "1" ]; then
+    if awk -v a="$actual" -v b="$min" 'BEGIN { exit (a >= b ? 0 : 1) }'; then
         pass "$label ($actual ≥ $min)"
     else
         fail "$label — expected $expr ≥ $min, got '$actual'"

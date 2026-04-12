@@ -67,8 +67,7 @@ log "INFO" "Running decryption smoke test..."
 openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -d \
     -pass "pass:${BACKUP_ENCRYPTION_KEY}" \
     -in "$BACKUP_FILE" \
-  | gzip -d \
-  | head -c 512 > /dev/null \
+  | gzip -d > /dev/null \
   || die "Decryption smoke test failed — backup may be unusable"
 log "INFO" "Decryption smoke test passed"
 

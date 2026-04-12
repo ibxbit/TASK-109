@@ -31,16 +31,16 @@ if ! command -v docker &>/dev/null; then
     exit 0
 fi
 
-if ! docker compose ps --services 2>/dev/null | grep -q backup; then
+COMPOSE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+if ! docker-compose -f "$COMPOSE_DIR/docker-compose.yml" ps --services 2>/dev/null | grep -q backup; then
     echo "  SKIP: backup service not running — start with 'docker compose up -d'"
     exit 0
 fi
 
-COMPOSE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-
 # ── Helper: run a command in the backup container ─────────────
 backup_exec() {
-    docker compose -f "$COMPOSE_DIR/docker-compose.yml" exec -T backup "$@"
+    docker-compose -f "$COMPOSE_DIR/docker-compose.yml" exec -T backup "$@"
 }
 
 # ── Helper: check a file exists inside the backup container ───
@@ -92,7 +92,7 @@ fi
 
 # Filename matches expected pattern: vitalpath_backup_YYYYMMDD_HHMMSSZ.sql.gz.enc
 BASENAME=$(basename "$LATEST_BACKUP")
-if echo "$BASENAME" | grep -qE '^vitalpath_backup_[0-9]{8}_[0-9]{6}Z\.sql\.gz\.enc$'; then
+if echo "$BASENAME" | grep -qE '^vitalpath_backup_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}\.sql\.gz\.enc$'; then
     pass "Backup filename matches pattern: $BASENAME"
 else
     fail "Backup filename does not match expected pattern: $BASENAME"

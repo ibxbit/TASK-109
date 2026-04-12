@@ -200,10 +200,9 @@ if $DOCKER_AVAILABLE; then
         " || true
 
         # Make 5 wrong-password attempts to trigger CAPTCHA threshold
+        # Using http_post to bypass the coarse rate-limit backstop so we can test the fine-grained lockout/captcha logic
         for attempt in 1 2 3 4 5; do
-            curl -s -o /dev/null -X POST "$BASE_URL/auth/login" \
-                -H "Content-Type: application/json" \
-                -d "{\"username\":\"$FRESH_USER\",\"password\":\"WrongPass${attempt}\"}"
+            http_post "/auth/login" "{\"username\":\"$FRESH_USER\",\"password\":\"WrongPass${attempt}\"}" > /dev/null
         done
 
         # 6th attempt without CAPTCHA should trigger CAPTCHA requirement

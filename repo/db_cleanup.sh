@@ -20,7 +20,6 @@ TRUNCATE
     deliveries, 
     goals, 
     health_profiles, 
-    key_rotation_logs, 
     metric_entries, 
     notification_schedules, 
     notification_subscriptions, 

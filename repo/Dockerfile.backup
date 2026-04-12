@@ -11,11 +11,17 @@
 FROM debian:bookworm-slim
 
 # Install PostgreSQL client tools, openssl, and cron
+# Install PostgreSQL 16 client from official repo
 RUN apt-get update && apt-get install -y --no-install-recommends \
         cron \
         openssl \
-        postgresql-client \
         ca-certificates \
+        gnupg2 \
+        lsb-release \
+        wget \
+    && echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
+    && apt-get update && apt-get install -y --no-install-recommends postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy scripts and mark them executable

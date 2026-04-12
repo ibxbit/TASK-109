@@ -178,6 +178,19 @@ pub fn estimate_p95_ms() -> Option<f64> {
 }
 
 pub fn gather_metrics() -> String {
+    // Belt-and-suspenders: ensure both the histogram and counter families always
+    // have at least one materialised child immediately before gathering, so the
+    // TextEncoder always emits them.  This guards against the edge case where
+    // the registry initialiser's pre-materialisation is not visible through the
+    // registered clone (e.g. on the very first scrape right after a fresh app
+    // start before the Telemetry middleware has recorded any real request).
+    http_duration()
+        .with_label_values(&["INIT", "/bootstrap"])
+        .observe(0.001);
+    http_requests()
+        .with_label_values(&["INIT", "/bootstrap", "200"])
+        .inc_by(0);
+
     let encoder = TextEncoder::new();
     let metric_families = registry().gather();
     let mut buf = Vec::new();

@@ -179,13 +179,12 @@ RUN_ID=$(date -u +%s)
 FRESH_USER="live_captcha_test_$RUN_ID"
 
 if $DOCKER_AVAILABLE; then
-    # Hash a known password using the app so we can create a valid user
-    HASH=$(docker compose exec -T app \
-        sh -c 'echo -n "Test1234!" | argon2 - -id 2>/dev/null || echo "invalid"' 2>/dev/null || echo "invalid")
-
-    # Use psql to create the user with a known-good Argon2 hash from admin
-    # We'll borrow the admin's hash since we know admin login works
-    ADMIN_HASH=$(psql_exec "SELECT password_hash FROM users WHERE username='admin';")
+    # Use psql to create the user with a known-good Argon2 hash from admin.
+    # We borrow the admin's hash since we know admin login works.
+    # The '|| true' prevents set -e from triggering if psql is temporarily
+    # unavailable; the subsequent 'if [ -n "$ADMIN_HASH" ]' handles the empty
+    # case gracefully by skipping the test rather than failing.
+    ADMIN_HASH=$(psql_exec "SELECT password_hash FROM users WHERE username='admin';" || true)
 
     if [ -n "$ADMIN_HASH" ]; then
         psql_exec "

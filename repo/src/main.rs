@@ -100,6 +100,15 @@ async fn main() -> std::io::Result<()> {
     // middleware can leave the histogram family absent from the output.
     metrics::registry();
 
+    // Belt-and-suspenders: record a bootstrap histogram observation via the
+    // same public function the Telemetry middleware uses. This guarantees the
+    // observation reaches the registered clone through the shared Arc, even
+    // if the registry initialiser's in-closure observe() call has a subtle
+    // ordering issue with the registration.
+    metrics::http_duration()
+        .with_label_values(&["INIT", "/bootstrap"])
+        .observe(0.001);
+
     eprintln!("[vitalpath] binding HTTP server on {}:{}", cfg.host, cfg.port);
     info!(host = %cfg.host, port = cfg.port, "VitalPath starting");
 

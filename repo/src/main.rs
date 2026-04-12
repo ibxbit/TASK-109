@@ -93,6 +93,13 @@ async fn main() -> std::io::Result<()> {
         });
     }
 
+    // Eagerly initialise the Prometheus registry so the histogram and counter
+    // families are always pre-materialised before the first HTTP request
+    // arrives. Without this, a race between the first scrape of
+    // /internal/metrics and the first real request through the Telemetry
+    // middleware can leave the histogram family absent from the output.
+    metrics::registry();
+
     eprintln!("[vitalpath] binding HTTP server on {}:{}", cfg.host, cfg.port);
     info!(host = %cfg.host, port = cfg.port, "VitalPath starting");
 

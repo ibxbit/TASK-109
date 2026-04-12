@@ -2,8 +2,18 @@
 # db_cleanup.sh — resets the database to a clean state for testing
 set -e
 
-# Use psql directly since it's installed in the tester container
-PGPASSWORD=vitalpath_secret psql -h db -U vitalpath -d vitalpath_db <<EOF
+# Use psql if available, otherwise use docker compose exec
+if command -v psql >/dev/null 2>&1; then
+    PSQL_CMD="psql -h db -U vitalpath -d vitalpath_db"
+    export PGPASSWORD=vitalpath_secret
+elif command -v docker >/dev/null 2>&1; then
+    PSQL_CMD="docker compose exec -T db psql -U vitalpath -d vitalpath_db"
+else
+    echo "Error: Neither psql nor docker found."
+    exit 1
+fi
+
+$PSQL_CMD <<EOF
 TRUNCATE 
     approvals, 
     audit_logs, 
@@ -20,7 +30,7 @@ TRUNCATE
     workflow_instances 
 RESTART IDENTITY CASCADE;
 
-UPDATE users SET failed_login_attempts = 0, locked_until = NULL;
+UPDATE users SET failed_attempts = 0, locked_until = NULL, captcha_required = false;
 EOF
 
 echo "Database cleaned (audit_logs, goals, metrics, etc. truncated)"

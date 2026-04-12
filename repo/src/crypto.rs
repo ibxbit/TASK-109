@@ -3,7 +3,7 @@ use aes_gcm::{
     Aes256Gcm, Key, Nonce,
 };
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use diesel::prelude::*;
 use tracing::{info, warn};
 

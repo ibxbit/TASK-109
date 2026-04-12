@@ -22,6 +22,7 @@ pub fn mask_id(id: &Uuid) -> String {
 ///
 /// If the string is 2 characters or shorter the whole value is
 /// replaced with asterisks to avoid trivial recovery.
+#[allow(dead_code)]
 pub fn mask_str(s: &str) -> String {
     let chars: Vec<char> = s.chars().collect();
     if chars.len() <= 2 {
@@ -32,6 +33,7 @@ pub fn mask_str(s: &str) -> String {
 }
 
 /// Convenience wrapper for usernames.
+#[allow(dead_code)]
 #[inline]
 pub fn mask_username(username: &str) -> String {
     mask_str(username)

@@ -16,9 +16,8 @@ use crate::{
             HealthProfileResponse, HealthProfileUpdateResponse, NewHealthProfile,
             UpdateHealthProfileRequest, is_valid_activity_level, is_valid_sex,
         },
-        user::User,
     },
-    schema::{health_profiles, members, users},
+    schema::health_profiles,
 };
 
 pub fn routes(cfg: &mut web::ServiceConfig) {

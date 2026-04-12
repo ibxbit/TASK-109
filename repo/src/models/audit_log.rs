@@ -11,50 +11,84 @@ use crate::schema::audit_logs;
 // Using constants keeps callers consistent and makes the column
 // filterable without full-text search.
 
+#[allow(dead_code)]
 // Auth
 pub const RC_LOGIN_SUCCESS:        &str = "LOGIN_SUCCESS";
+#[allow(dead_code)]
 pub const RC_LOGIN_FAILED:         &str = "LOGIN_FAILED";
+#[allow(dead_code)]
 pub const RC_LOGIN_BLOCKED:        &str = "LOGIN_BLOCKED_LOCKED";
+#[allow(dead_code)]
 pub const RC_LOGOUT:               &str = "LOGOUT";
+#[allow(dead_code)]
 pub const RC_ACCOUNT_LOCKED:       &str = "ACCOUNT_LOCKED";
 
 // Data access (reads of sensitive data)
+#[allow(dead_code)]
 pub const RC_HEALTH_PROFILE_READ:  &str = "HEALTH_PROFILE_READ";
+#[allow(dead_code)]
 pub const RC_ANALYTICS_READ:       &str = "ANALYTICS_READ";
+#[allow(dead_code)]
 pub const RC_ANALYTICS_DOWNLOAD:   &str = "ANALYTICS_DOWNLOAD";
+#[allow(dead_code)]
 pub const RC_ANALYTICS_EXPORT:     &str = "ANALYTICS_EXPORT";
 
 // Data mutations
+#[allow(dead_code)]
 pub const RC_HEALTH_PROFILE_CREATED: &str = "HEALTH_PROFILE_CREATED";
+#[allow(dead_code)]
 pub const RC_HEALTH_PROFILE_UPDATED: &str = "HEALTH_PROFILE_UPDATED";
+#[allow(dead_code)]
 pub const RC_GOAL_CREATED:           &str = "GOAL_CREATED";
+#[allow(dead_code)]
 pub const RC_GOAL_UPDATED:           &str = "GOAL_UPDATED";
+#[allow(dead_code)]
 pub const RC_GOAL_AUTO_COMPLETED:    &str = "GOAL_AUTO_COMPLETED";
+#[allow(dead_code)]
 pub const RC_METRIC_ENTRY_CREATED:   &str = "METRIC_ENTRY_CREATED";
 
 // Work orders
+#[allow(dead_code)]
 pub const RC_WORK_ORDER_CREATED:     &str = "WORK_ORDER_CREATED";
+#[allow(dead_code)]
 pub const RC_WORK_ORDER_TRANSITION:  &str = "WORK_ORDER_TRANSITION";
 
 // Workflows
+#[allow(dead_code)]
 pub const RC_WORKFLOW_TEMPLATE_CREATED:   &str = "WORKFLOW_TEMPLATE_CREATED";
+#[allow(dead_code)]
 pub const RC_WORKFLOW_NODE_ADDED:         &str = "WORKFLOW_NODE_ADDED";
+#[allow(dead_code)]
 pub const RC_WORKFLOW_STARTED:            &str = "WORKFLOW_STARTED";
+#[allow(dead_code)]
 pub const RC_WORKFLOW_RESUBMITTED:        &str = "WORKFLOW_RESUBMITTED";
+#[allow(dead_code)]
 pub const RC_WORKFLOW_WITHDRAWN:          &str = "WORKFLOW_WITHDRAWN";
+#[allow(dead_code)]
 pub const RC_APPROVAL_APPROVED:           &str = "APPROVAL_APPROVED";
+#[allow(dead_code)]
 pub const RC_APPROVAL_REJECTED:           &str = "APPROVAL_REJECTED";
+#[allow(dead_code)]
 pub const RC_APPROVAL_RETURNED_FOR_EDIT:  &str = "APPROVAL_RETURNED_FOR_EDIT";
+#[allow(dead_code)]
 pub const RC_APPROVAL_REASSIGNED:         &str = "APPROVAL_REASSIGNED";
+#[allow(dead_code)]
 pub const RC_ADDITIONAL_SIGN_OFF:         &str = "ADDITIONAL_SIGN_OFF_REQUESTED";
+#[allow(dead_code)]
 pub const RC_SLA_BREACHED:                &str = "SLA_BREACHED";
 
 // Notifications
+#[allow(dead_code)]
 pub const RC_NOTIFICATION_CREATED:             &str = "NOTIFICATION_CREATED";
+#[allow(dead_code)]
 pub const RC_NOTIFICATION_READ:                &str = "NOTIFICATION_READ";
+#[allow(dead_code)]
 pub const RC_NOTIFICATION_ALL_READ:            &str = "NOTIFICATION_ALL_READ";
+#[allow(dead_code)]
 pub const RC_NOTIFICATION_SUBSCRIPTION_UPDATED: &str = "NOTIFICATION_SUBSCRIPTION_UPDATED";
+#[allow(dead_code)]
 pub const RC_NOTIFICATION_SCHEDULE_CREATED:    &str = "NOTIFICATION_SCHEDULE_CREATED";
+#[allow(dead_code)]
 pub const RC_NOTIFICATION_SCHEDULE_DELETED:    &str = "NOTIFICATION_SCHEDULE_DELETED";
 
 // ── DB row ───────────────────────────────────────────────────

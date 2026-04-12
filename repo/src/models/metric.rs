@@ -23,6 +23,7 @@ pub fn is_valid_metric_type(name: &str) -> bool {
 }
 
 /// Validates that `value` falls within the allowed range for `metric_type`.
+#[allow(dead_code)]
 pub fn validate_metric_value(metric_type: &str, value: f64) -> Result<(), AppError> {
     let entry = METRIC_CATALOGUE
         .iter()

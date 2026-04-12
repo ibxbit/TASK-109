@@ -5,7 +5,6 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::{
-    auth::role::Role,
     db::DbPool,
     errors::AppError,
     middleware::auth::AuthenticatedUser,

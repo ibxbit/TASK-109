@@ -5,7 +5,6 @@ use uuid::Uuid;
 
 use crate::{
     auth::{captcha, passwords, role::Role},
-    db::DbPool,
     errors::AppError,
     models::{
         audit_log::{self, NewAuditLog},

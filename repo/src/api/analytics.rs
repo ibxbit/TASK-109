@@ -696,7 +696,7 @@ fn report_to_xlsx(r: &AnalyticsReport, path: &str) -> Result<(), AppError> {
         }
     }
 
-    drop(write_named_count); // unused path; prevent warning
+    let _ = write_named_count; // unused path; prevent warning
     wb.save(path)
         .map_err(|e| AppError::Internal(anyhow::anyhow!("xlsx save: {}", e)))?;
 

@@ -120,15 +120,13 @@ async fn main() -> std::io::Result<()> {
             .app_data(db_ready_data.clone())
             // Structured request/response tracing
             .wrap(tracing_actix_web::TracingLogger::default())
-            // Prometheus metrics: latency, request counts, error rates
-            .wrap(middleware::telemetry::Telemetry)
-            // Security headers on every response
-            .wrap(security_headers)
             // Per-user sliding-window rate limit (60 req / 60 s)
             .wrap(security::rate_limit::RateLimit::new(
                 rate_limit_store.clone(),
                 token_user_cache.clone(),
             ))
+            // Prometheus metrics: latency, request counts, error rates (Outer to capture everything)
+            .wrap(middleware::telemetry::Telemetry)
             .configure(api::health::routes)
             .configure(api::metrics::routes)
             .configure(api::auth::routes)

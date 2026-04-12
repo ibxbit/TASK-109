@@ -90,6 +90,7 @@ pub fn http_errors() -> &'static IntCounterVec {
     HTTP_ERRORS.get().unwrap()
 }
 
+#[allow(dead_code)]
 pub fn db_pool_wait_timeouts() -> &'static Counter {
     registry();
     DB_POOL_WAIT_TIMEOUTS.get().unwrap()

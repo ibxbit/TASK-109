@@ -5,7 +5,6 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::{
-    auth::role::Role,
     db::DbPool,
     errors::AppError,
     middleware::auth::{AdminAuth, ApproverAuth, AuthenticatedUser},
@@ -20,7 +19,7 @@ use crate::{
             WorkflowNode, WorkflowTemplate,
         },
     },
-    schema::{approvals, notifications, workflow_instances, workflow_nodes, workflow_templates},
+    schema::{approvals, workflow_instances, workflow_nodes, workflow_templates},
 };
 
 pub fn routes(cfg: &mut web::ServiceConfig) {

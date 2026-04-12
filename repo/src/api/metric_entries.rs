@@ -1,7 +1,6 @@
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
 use chrono::{Duration, NaiveDate, Utc};
 use diesel::prelude::*;
-use std::collections::BTreeMap;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -12,7 +11,7 @@ use crate::{
     models::{
         audit_log::{self, NewAuditLog},
         metric::{
-            is_valid_metric_type, validate_metric_value, CreateMetricEntryRequest, EntryWithType,
+            is_valid_metric_type, CreateMetricEntryRequest, EntryWithType,
             MetricEntryResponse, MetricListResponse, MetricSummaryItem, MetricSummaryResponse,
             MetricTypeRecord, MetricsQuery, NewMetricEntry, SummaryQuery,
         },

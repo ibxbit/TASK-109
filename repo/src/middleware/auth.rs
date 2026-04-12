@@ -9,7 +9,6 @@ use uuid::Uuid;
 
 use crate::{
     auth::{role::Role, service},
-    config::AppConfig,
     db::DbPool,
     errors::AppError,
 };
@@ -62,6 +61,7 @@ impl AuthenticatedUser {
     /// their own resource (`target_user_id == self.user_id`).
     /// Used for endpoints that serve both admins (all data) and
     /// members (own data only).
+    #[allow(dead_code)]
     pub fn require_self_or_admin(&self, target_user_id: Uuid) -> Result<(), AppError> {
         if self.role.is_admin() || self.user_id == target_user_id {
             Ok(())

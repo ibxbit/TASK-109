@@ -1,4 +1,3 @@
-use actix_web::body::BoxBody;
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
 use serde::Serialize;
@@ -21,6 +20,7 @@ pub enum AppError {
     #[error("Conflict: {0}")]
     Conflict(String),
 
+    #[allow(dead_code)]
     #[error("Conflict with data")]
     ConflictWithData(serde_json::Value),
 

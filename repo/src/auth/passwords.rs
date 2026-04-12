@@ -4,6 +4,7 @@ use argon2::{
 };
 
 /// Hash a plaintext password with Argon2id. Returns a PHC-formatted string.
+#[allow(dead_code)]
 pub fn hash(password: &str) -> Result<String, argon2::password_hash::Error> {
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default(); // Argon2id, recommended parameters

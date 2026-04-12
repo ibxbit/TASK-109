@@ -8,7 +8,7 @@
 //! makes audit_logs physically immutable — no UPDATE or DELETE is possible.
 
 use actix_web::{get, web, HttpResponse};
-use chrono::{NaiveDate, Utc};
+use chrono::NaiveDate;
 use diesel::prelude::*;
 
 use crate::{

@@ -22,6 +22,12 @@ pub fn registry() -> &'static Registry {
         )
         .unwrap();
 
+        // Ensure the counter family is always present in scrapes, even before
+        // the first real request is recorded.
+        requests
+            .with_label_values(&["INIT", "/bootstrap", "200"])
+            .inc_by(0);
+
         // Finer buckets around the 300 ms p95 target
         let duration = HistogramVec::new(
             HistogramOpts::new("http_request_duration_seconds", "HTTP request duration").buckets(
@@ -47,6 +53,11 @@ pub fn registry() -> &'static Registry {
             &["method", "path", "status"],
         )
         .unwrap();
+
+        // Keep the errors counter family materialized as well for consistency.
+        errors
+            .with_label_values(&["INIT", "/bootstrap", "500"])
+            .inc_by(0);
 
         let pool_active = Gauge::with_opts(Opts::new(
             "db_pool_connections_active",

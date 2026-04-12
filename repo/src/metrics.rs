@@ -36,7 +36,11 @@ pub fn registry() -> &'static Registry {
 
         // Materialize one histogram label set so scrapes always include this
         // metric family even before the first real request observation.
-        let _ = duration.with_label_values(&["INIT", "/bootstrap"]);
+        // `observe(0.0)` forces the child series to be emitted consistently
+        // across client-library internals and process start timings.
+        duration
+            .with_label_values(&["INIT", "/bootstrap"])
+            .observe(0.0);
 
         let errors = IntCounterVec::new(
             Opts::new("http_errors_total", "Total HTTP 4xx/5xx responses"),

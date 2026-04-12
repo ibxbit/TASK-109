@@ -31,7 +31,7 @@ services:
       POSTGRES_PASSWORD: vitalpath_secret
       POSTGRES_DB:       vitalpath_db
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - vitalpath_pg_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vitalpath -d vitalpath_db"]
       interval: 5s
@@ -74,7 +74,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - exports_data:/exports
+      - vitalpath_exports_data:/exports
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/healthz"]
       start_period: 30s
@@ -109,7 +109,7 @@ services:
       BACKUP_DIR:   /backups
       RETAIN_DAYS:  30
     volumes:
-      - backup_data:/backups
+      - vitalpath_backup_data:/backups
 
   # ── Test Runner ─────────────────────────────────────────────────────────────
   # Used by run_tests.sh to execute the test suite within the Docker network.
@@ -141,6 +141,6 @@ services:
 #       o: bind
 # =============================================================================
 volumes:
-  pg_data:
-  backup_data:
-  exports_data:
+  vitalpath_pg_data:
+  vitalpath_backup_data:
+  vitalpath_exports_data:

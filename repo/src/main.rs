@@ -118,6 +118,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(cipher.clone())
             .app_data(token_user_cache_data.clone())
             .app_data(db_ready_data.clone())
+            .wrap(security_headers)
             // Structured request/response tracing
             .wrap(tracing_actix_web::TracingLogger::default())
             // Per-user sliding-window rate limit (60 req / 60 s)

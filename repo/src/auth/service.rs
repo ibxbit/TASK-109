@@ -253,6 +253,7 @@ pub fn login(
 
 // ── Logout ───────────────────────────────────────────────────
 
+#[allow(dead_code)]
 pub fn logout(conn: &mut PgConnection, raw_token: &str) -> Result<(), AppError> {
     let now = Utc::now();
     let rows = diesel::update(

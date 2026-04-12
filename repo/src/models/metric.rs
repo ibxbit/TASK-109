@@ -88,6 +88,7 @@ pub struct NewMetricEntry {
 pub struct EntryWithType {
     pub id: Uuid,
     pub member_id: Uuid,
+    #[allow(dead_code)]
     pub metric_type_id: Uuid,
     pub metric_type_name: String,
     pub unit: String,

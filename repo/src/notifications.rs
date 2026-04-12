@@ -21,7 +21,7 @@ use crate::{
         Delivery, NewDelivery, NewNotification, NotificationSchedule,
         MAX_DAILY_SENDS_PER_TEMPLATE, MAX_DELIVERY_ATTEMPTS,
     },
-    schema::{deliveries, notification_schedules, notification_subscriptions, notifications},
+    schema::{deliveries, notification_schedules, notifications},
 };
 
 // ── Public send API ───────────────────────────────────────────

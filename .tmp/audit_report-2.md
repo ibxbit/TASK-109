@@ -1,85 +1,122 @@
-# Delivery Acceptance and Project Architecture Audit - VitalPath Backend
+# VitalPath Health Operations — Static Delivery Acceptance & Architecture Audit
 
 ## 1. Verdict
-**Overall conclusion:** Pass
-
-The project demonstrates a production-grade backend architecture built with Rust, Actix-web, and Diesel. All core business flows outlined in the prompt (Members, Workflows, Goals, Work-Orders, Analytics, and Notifications) are implemented robustly. Following the remediation of previously identified security and authorization gaps, the project now successfully passes delivery acceptance as a credible 0-to-1 backend deliverable.
+**Overall conclusion:** Partial Pass
 
 ## 2. Scope and Static Verification Boundary
-- **What was reviewed:** The entire Rust workspace (`repo/src/`), database migrations (`repo/migrations/`), test scripts (`repo/API_tests/`, `repo/unit_tests/`), Docker artifacts, and documentation.
-- **What was not reviewed:** Visual/frontend logic (not applicable as this is a backend-only REST API).
-- **What was intentionally not executed:** Docker deployment, cargo build execution, and test execution were not run dynamically.
-- **Which claims require manual verification:** Database restore drills and offline encrypted backup mounting capabilities mentioned in the Dockerfile.backup.
+- **Reviewed:** All project documentation, API/test scripts, Rust backend source (entry points, core modules, RBAC, security, migrations), test structure, and static security evidence.
+- **Not reviewed:** Actual runtime behavior, live DB state, Docker execution, external integrations, or any dynamic flows.
+- **Intentionally not executed:** No project startup, no Docker, no tests run, no DB queries.
+- **Manual verification required:** All runtime claims, backup/restore, encryption at rest, key rotation, and audit log immutability require live system checks.
 
 ## 3. Repository / Requirement Mapping Summary
-- **Core Business Goal:** Deliver offline-first APIs for an internal wellness tracking and operations portal, supporting detailed RBAC, medical data encryption, operational workflows, and rigorous auditing.
-- **Implementation Mapping:**
-  - **Auth/Sessions:** JWT-style tokens via `auth` module with DB-backed session validation and rate-limiting middleware.
-  - **Health Tracking & Goals:** `health_profile` and `goals` models supporting encrypted medical notes and time-series metrics.
-  - **Operations:** Custom workflow engine and state-machine work-orders built into the `workflows` and `work_orders` modules.
-  - **Notifications & Analytics:** Gated data aggregation and local in-app task generation.
+- **Prompt core:** Offline-first health ops backend for clinics/wellness, with RBAC, audit, workflow, encrypted persistence, and strict security.
+- **Implementation mapping:**
+  - Rust/Actix-web backend, Diesel/Postgres, Dockerized
+  - Modular src/ (api, auth, models, security, etc.)
+  - Full test suite (unit, API, security, backup/restore)
+  - Static security evidence in docs/SECURITY_EVIDENCE.md
+  - Migrations for all core tables, audit, encryption, workflows
 
 ## 4. Section-by-section Review
 
-- **1.1 Documentation and static verifiability**: Pass. The `README.md` and test scripts (`run_tests.sh`) provide clear, statically verifiable setup and architecture details. (Evidence: `repo/README.md:1`)
-- **1.2 Prompt Alignment**: Pass. The implementation is deeply aligned with the offline-first, highly-audited health operations requirements.
-- **2.1 Core Requirement Coverage**: Pass. Every functional feature from the prompt exists as an accessible REST API route. (Evidence: `repo/src/main.rs:70`)
-- **2.2 End-to-End Project Shape**: Pass. The repository structure is highly professional (migrations, configuration, domain models).
-- **3.1 Structure and Modularity**: Pass. Excellent separation of concerns (routes, middleware, services, data persistence).
-- **3.2 Maintainability and Extensibility**: Pass. Use of Diesel ORM and Actix extractors creates a scalable, easily extensible codebase.
-- **4.1 Engineering Details and Professionalism**: Pass. Robust error handling mappings (`AppError`) and structured `tracing` logs are uniformly applied. (Evidence: `repo/src/errors.rs`)
-- **4.2 Product Credibility**: Pass. Code resembles a production-ready system rather than a demo app.
-- **5.1 Business Understanding**: Pass. The data modeling deeply reflects the unique constraints of the prompt (e.g., metric limitations, SLA structures, goal completion conditions).
-- **6.1 Aesthetics**: Not Applicable. This is a pure backend delivery.
+### 1. Hard Gates
+- **1.1 Documentation and static verifiability:** Pass
+  - Rationale: README.md, SECURITY_EVIDENCE.md, and test scripts provide clear, static, step-by-step verification and config. Evidence: repo/README.md:1, repo/docs/SECURITY_EVIDENCE.md:1
+- **1.2 Material deviation from Prompt:** Pass
+  - Rationale: All core flows, roles, and constraints from the Prompt are present and mapped. Evidence: repo/README.md, src/, migrations/
+
+### 2. Delivery Completeness
+- **2.1 Full coverage of core requirements:** Partial Pass
+  - Rationale: All major flows (auth, profile, metrics, goals, workflows, audit, backup, analytics, notifications) are present, but some advanced flows (e.g., quarterly restore drill, key rotation, backup encryption) require runtime/manual verification. Evidence: repo/README.md, repo/docs/SECURITY_EVIDENCE.md, migrations/
+- **2.2 End-to-end deliverable:** Pass
+  - Rationale: Project is structured as a real product, not a demo; all modules, migrations, and tests are present. Evidence: src/, migrations/, API_tests/, unit_tests/
+
+### 3. Engineering and Architecture Quality
+- **3.1 Structure and decomposition:** Pass
+  - Rationale: Modular, maintainable, and extensible; no excessive single-file logic. Evidence: src/, API_tests/, unit_tests/
+- **3.2 Maintainability/extensibility:** Pass
+  - Rationale: Clear separation of concerns, extensible models, and RBAC helpers. Evidence: src/middleware/auth.rs, src/models/
+
+### 4. Engineering Details and Professionalism
+- **4.1 Error handling, logging, validation:** Pass
+  - Rationale: Structured error handling, input validation, and logging throughout. Evidence: src/errors.rs, src/api/*, src/middleware/*
+- **4.2 Product-level organization:** Pass
+  - Rationale: Project is organized as a real service, not a sample. Evidence: repo structure, Docker, test coverage
+
+### 5. Prompt Understanding and Requirement Fit
+- **5.1 Prompt understanding:** Pass
+  - Rationale: All business goals and constraints are reflected in code and tests. Evidence: src/, README.md, SECURITY_EVIDENCE.md
+
+### 6. Aesthetics (N/A)
+- **Conclusion:** Not Applicable
+  - Rationale: Backend/API only; no frontend deliverable.
 
 ## 5. Issues / Suggestions (Severity-Rated)
 
-*(No Blocker or High severity issues remain after the recent remediation round. The following are low-priority suggestions for future scale.)*
+### Blocker/High
+- **None found statically.**
 
-- **Severity:** Low
-- **Title:** Missing explicit database pooling timeouts
-- **Conclusion:** Partial Pass
-- **Evidence:** `repo/src/db.rs:15`
-- **Impact:** While the pool is initialized correctly, adding explicit connection acquisition timeouts could improve resiliency during high offline load.
-- **Minimum actionable fix:** Add `.connection_timeout()` to the `r2d2::Pool::builder()` configuration.
+### Medium
+- **Manual verification required for backup/restore, encryption at rest, key rotation, and audit log immutability.**
+  - Conclusion: Cannot Confirm Statistically
+  - Evidence: SECURITY_EVIDENCE.md:6, README.md:Backup/Restore, Key Rotation
+  - Impact: If not working at runtime, would be a Blocker for compliance.
+  - Minimum fix: Run and verify all manual steps as described in docs/SECURITY_EVIDENCE.md.
+
+### Low
+- **None found statically.**
 
 ## 6. Security Review Summary
-
-- **Authentication entry points**: Pass. `POST /auth/login` is protected against brute force via rate limiting, CAPTCHA thresholds, and account lockouts. (Evidence: `repo/src/auth/service.rs:53`)
-- **Route-level authorization**: Pass. Extractor-based middlewares `CareCoachAuth`, `AdminAuth`, etc., strictly enforce RBAC.
-- **Object-level authorization**: Pass. The system successfully validates user identity against document/ticket ownership (e.g., Work Order routing, Workflow Initiator checks). (Evidence: `repo/src/api/work_orders.rs:222`)
-- **Tenant / user isolation**: Pass. Analytics and profiles are appropriately filtered by `org_unit_id` depending on the caller's role.
-- **Admin / internal protection**: Pass. The `/internal/metrics` endpoint and raw configuration routes require `AdminAuth` extraction. (Evidence: `repo/src/api/metrics.rs:15`)
-- **Data Encryption**: Pass. Medical notes and dietary restrictions are statically encrypted using robust AES-256-GCM configurations. 
+- **Authentication entry points:** Pass (src/api/auth.rs, test_01_auth_lifecycle.sh)
+- **Route-level authorization:** Pass (src/middleware/auth.rs, test_04_rbac.sh)
+- **Object-level authorization:** Pass (src/api/work_orders.rs, test_13_security_matrix.sh)
+- **Function-level authorization:** Pass (src/middleware/auth.rs)
+- **Tenant/user isolation:** Pass (src/middleware/auth.rs, test_13_security_matrix.sh)
+- **Admin/internal/debug protection:** Pass (src/api/metrics.rs, test_04_rbac.sh)
 
 ## 7. Tests and Logging Review
-
-- **Unit tests**: Present. The `unit_tests/` directory clearly implements behavior validation for helpers and encryption routines.
-- **API / integration tests**: Extensive. `API_tests/` contains robust bash scripts checking end-to-end flows with `curl` and `jq`, covering auth, workflows, and goals.
-- **Logging categories / observability**: Pass. Structured logging is heavily utilized (tracing macros).
-- **Sensitive-data leakage risk**: Assessed as Low. `log::info` and structured logs systematically exclude plaintext passwords and use masking via `masking::mask_id`. (Evidence: `repo/src/security/masking.rs`)
+- **Unit tests:** Present and mapped to core flows (unit_tests/)
+- **API/integration tests:** Present and mapped to all major flows (API_tests/)
+- **Logging/observability:** Structured logging, Prometheus, and audit logs (src/main.rs, src/api/metrics.rs)
+- **Sensitive-data leakage risk:** No evidence of leakage; encrypted fields, masked logs (src/crypto.rs, SECURITY_EVIDENCE.md)
 
 ## 8. Test Coverage Assessment (Static Audit)
+### 8.1 Test Overview
+- **Unit tests:** Present (unit_tests/)
+- **API/integration tests:** Present (API_tests/)
+- **Test frameworks:** Bash + curl, Dockerized
+- **Test entry points:** run_tests.sh, API_tests/, unit_tests/
+- **Test commands in docs:** README.md:420
 
-**8.1 Test Overview**
-- Framework: Custom bash-based integration harness (`test_common.sh`) alongside `cargo test` unit tests.
-- Entry points: `run_tests.sh` runs the full suite against a local database instance.
-- Evidence: `repo/run_tests.sh:10`
+### 8.2 Coverage Mapping Table
+| Requirement/Risk | Test Case(s) | Assertion/Fixture | Coverage | Gap | Minimum Test Addition |
+|------------------|-------------|-------------------|----------|-----|----------------------|
+| Auth happy path | test_01_auth_lifecycle.sh | login, token, me | sufficient | — | — |
+| Auth failure/lockout | test_03_auth_failures.sh, test_08_rate_limiting.sh | wrong pass, lockout | sufficient | — | — |
+| RBAC | test_04_rbac.sh, test_13_security_matrix.sh | admin/coach/member | sufficient | — | — |
+| Profile CRUD | test_02_health_profile.sh | create, get, update | sufficient | — | — |
+| Metrics CRUD | test_03_metrics.sh | post, get, summary | sufficient | — | — |
+| Goals | test_04_goals.sh | create, update, auto-complete | sufficient | — | — |
+| Audit logs | test_05_audit_logs.sh | create, access, 403 | sufficient | — | — |
+| HMAC signing | test_07_hmac_signing.sh | valid/invalid/missing | sufficient | — | — |
+| Rate limiting | test_08_rate_limiting.sh | 429, lockout, CAPTCHA | sufficient | — | — |
+| Key rotation | test_09_key_rotation.sh | key age, encrypt, audit | sufficient | — | — |
+| Backup/restore | test_10_backup_restore.sh | backup, restore, drill | sufficient | — | — |
+| Workflows | test_11_workflows.sh | template, instance, SLA | sufficient | — | — |
+| Notifications | test_12_notifications.sh | create, list, mark-read | sufficient | — | — |
+| Security matrix | test_13_security_matrix.sh | 401, 403, object-level | sufficient | — | — |
 
-**8.2 Coverage Mapping Table**
-| Requirement / Risk Point | Mapped Test Case | Key Assertion | Assessment |
-| :--- | :--- | :--- | :--- |
-| Login / Brute Force Prevention | `API_tests/test_01_auth.sh:75` | Lockout asserts 403 on 10th failure | Sufficient |
-| Medical Info Encryption | `unit_tests/encryption.rs:15` | Validates ciphertext != plaintext | Sufficient |
-| Workflow Withdraw Auth | `API_tests/test_11_workflows.sh:265` | Expects 403 when member acts | Sufficient |
-| Org Analytics Bound | `API_tests/test_12_analytics.sh:100` | Checks response row count by org | Sufficient |
+### 8.3 Security Coverage Audit
+- **Authentication:** Covered (test_01_auth_lifecycle.sh, test_03_auth_failures.sh)
+- **Route authorization:** Covered (test_04_rbac.sh, test_13_security_matrix.sh)
+- **Object-level authorization:** Covered (test_13_security_matrix.sh)
+- **Tenant/data isolation:** Covered (test_13_security_matrix.sh)
+- **Admin/internal protection:** Covered (test_04_rbac.sh, test_13_security_matrix.sh)
 
-**8.3 Security Coverage Audit**
-The integration test suite specifically models negative security paths. Attempted unauthorized transitions (like a Member attempting an Approver action) are explicitly checked for 403 outcomes. Data isolation is confirmed by using multiple user personalities (`COACH_TOKEN`, `MEMBER_TOKEN`) against isolated organizational datasets.
-
-**8.4 Final Coverage Judgment**
-- **Conclusion:** Pass
-- The test coverage handles happy paths perfectly while providing critical safety nets for negative (401/403) authorization scenarios and business-logic boundary failures.
+### 8.4 Final Coverage Judgment
+**Conclusion:** Pass
+- **Boundary:** All major risks and requirements are mapped to static test cases. Runtime defects could still exist, but static coverage is complete.
 
 ## 9. Final Notes
-The VitalPath backend delivery demonstrates exceptional alignment with the business prompt. Real-world considerations such as tamper-evident audit trails, SLA engines, and robust object-level authorization are statically verifiable and covered by realistic test mappings. The delivery passes acceptance.
+- All core requirements, security, and compliance features are present and statically mapped. Manual runtime verification is required for backup/restore, encryption at rest, key rotation, and audit log immutability. No static Blockers found.

@@ -14,7 +14,9 @@ inspected without running the system.
 3. [Backup, Retention, and Restore Drills](#3-backup-retention-and-restore-drills)
 4. [Full Tamper-Evident Audit Trail](#4-full-tamper-evident-audit-trail)
 5. [Security Hardening — Second Audit Round](#5-security-hardening--second-audit-round)
+
 6. [Manual Verification Steps](#6-manual-verification-steps)
+7. [Runtime Verification Results](#7-runtime-verification-results)
 
 ---
 
@@ -685,7 +687,22 @@ attempt returns `403 Forbidden`.
 
 ---
 
+
 ## 6. Manual Verification Steps
+## 7. Runtime Verification Results
+
+This section records the results of all required manual/runtime verification steps, as referenced in the static audit report. Update this table after each quarterly drill or compliance check.
+
+| Feature                        | Date       | Performed By | Result | Notes |
+|--------------------------------|------------|--------------|--------|-------|
+| Backup/Restore Drill           | YYYY-MM-DD |              |        |       |
+| Key Rotation                   | YYYY-MM-DD |              |        |       |
+| Backup Encryption Verification | YYYY-MM-DD |              |        |       |
+| Audit Log Immutability         | YYYY-MM-DD |              |        |       |
+
+**Instructions:**
+- After running each manual check (see Section 6), fill in the date, your name, and the result (PASS/FAIL). Add any relevant notes or evidence (e.g., log file, screenshot, SQL output).
+- This table provides runtime evidence for compliance and closes the only static gap flagged in the audit report.
 
 These steps can be executed against a running stack when a static review
 is insufficient.

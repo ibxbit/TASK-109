@@ -114,7 +114,17 @@ services:
   # ── Test Runner ─────────────────────────────────────────────────────────────
   # Used by run_tests.sh to execute the test suite within the Docker network.
   # This avoids dependencies on local tools (bash, curl, jq) in the environment.
+  #
+  # Gated behind the "test" profile so `docker compose up` does NOT auto-start
+  # it.  Auto-starting caused concurrent test executions (one from the auto-
+  # started tester-1, another from `run_tests.sh` on the host which delegates
+  # to `docker compose run --rm tester`) to race on the shared database —
+  # e.g. test_06 inserting `waist` twice hit the
+  # (member_id, metric_type_id, entry_date) unique constraint and returned 409.
+  # `docker compose run --rm tester` bypasses the profile by naming the
+  # service explicitly, so the delegation path in run_tests.sh still works.
   tester:
+    profiles: ["test"]
     build:
       context: .
       dockerfile: Dockerfile.tester

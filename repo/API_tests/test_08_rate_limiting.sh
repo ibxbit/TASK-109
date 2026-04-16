@@ -19,8 +19,23 @@ if command -v docker &>/dev/null && (docker compose ps &>/dev/null || docker-com
 fi
 
 # ── Helper: insert/reset test users via psql ─────────────────
+#
+# Prefer `docker compose exec db` over direct TCP (`psql -h db`) because
+# the latter only resolves the `db` hostname when the caller is already
+# inside a container attached to the compose network.  When `run_tests.sh`
+# runs on the CI host, `db` is not resolvable and psql fails silently,
+# leaving the INSERTs below a no-op — which caused test_08 sections B/C
+# to see HTTP 401 (user not found) instead of the expected 423/403.
+# `docker compose exec` connects through the docker socket and works
+# from host or container.  Falls back to direct TCP only when `docker`
+# isn't available (e.g. when already running inside the tester container
+# where psql+network already work, or in a dev sandbox with PG on host).
 psql_exec() {
-    PGPASSWORD=vitalpath_secret psql -h db -U vitalpath -d vitalpath_db -t -A -c "$1" 2>/dev/null
+    if command -v docker &>/dev/null && docker compose ps db &>/dev/null; then
+        docker compose exec -T db psql -U vitalpath -d vitalpath_db -t -A -c "$1" 2>/dev/null
+    else
+        PGPASSWORD=vitalpath_secret psql -h db -U vitalpath -d vitalpath_db -t -A -c "$1" 2>/dev/null
+    fi
 }
 
 # =============================================================================

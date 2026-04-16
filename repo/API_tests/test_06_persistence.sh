@@ -103,12 +103,17 @@ assert_status "200" "$RESP_STATUS" "GET /work-orders returns 200"
 raw=$(http_get "/internal/metrics" "$ADMIN_TOKEN")
 split_response "$raw"
 assert_status "200" "$RESP_STATUS" "GET /internal/metrics returns 200 (admin)"
-if echo "$RESP_BODY" | grep -q "http_requests_total"; then
+# Use bash pattern matching instead of `echo | grep -q`: with
+# `set -o pipefail`, grep -q exits early and echo gets SIGPIPE on the
+# remaining ~75 KB of body, making the pipeline return 141 and the `if`
+# branch appear false even when the pattern is present. Pattern match
+# is in-process and has no pipe, so there is no SIGPIPE hazard.
+if [[ "$RESP_BODY" == *"http_requests_total"* ]]; then
     pass "Prometheus output contains http_requests_total counter"
 else
     fail "Prometheus output missing http_requests_total"
 fi
-if echo "$RESP_BODY" | grep -q "http_request_duration_seconds"; then
+if [[ "$RESP_BODY" == *"http_request_duration_seconds"* ]]; then
     pass "Prometheus output contains http_request_duration_seconds histogram"
 else
     fail "Prometheus output missing http_request_duration_seconds"

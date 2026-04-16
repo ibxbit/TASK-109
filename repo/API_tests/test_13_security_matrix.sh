@@ -28,22 +28,34 @@ echo "  ── A: Global 401 matrix (unauthenticated) ──"
 
 check_401() {
     local method="$1" path="$2" label="$3" body="${4:-}"
-    local status
+    local raw resp_body resp_status
     if [ "$method" = "GET" ]; then
-        status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL$path")
+        raw=$(curl -s -w "\n%{http_code}" "$BASE_URL$path")
     elif [ "$method" = "POST" ]; then
-        status=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+        raw=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Content-Type: application/json" \
             -d "${body:-{\}}" "$BASE_URL$path")
     elif [ "$method" = "PUT" ]; then
-        status=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+        raw=$(curl -s -w "\n%{http_code}" -X PUT \
             -H "Content-Type: application/json" \
             -d "${body:-{\}}" "$BASE_URL$path")
     fi
-    if [ "$status" = "401" ]; then
-        pass "$label → 401 (unauthenticated)"
+    resp_status=$(printf '%s' "$raw" | tail -n1)
+    resp_body=$(printf '%s' "$raw" | sed '$d')
+    if [ "$resp_status" = "401" ]; then
+        # Also verify the error envelope shape — every 401 must carry the
+        # standard `{"error":"...","message":"..."}` body so clients can
+        # distinguish auth errors from other failures programmatically.
+        local has_error has_message
+        has_error=$(printf '%s' "$resp_body" | jq -r '.error // empty' 2>/dev/null)
+        has_message=$(printf '%s' "$resp_body" | jq -r '.message // empty' 2>/dev/null)
+        if [ -n "$has_error" ] && [ -n "$has_message" ]; then
+            pass "$label → 401 (unauthenticated)"
+        else
+            fail "$label → 401 but missing error/message body keys"
+        fi
     else
-        fail "$label → expected 401, got $status"
+        fail "$label → expected 401, got $resp_status"
     fi
 }
 
@@ -151,24 +163,25 @@ if [ "$RESP_STATUS" = "201" ]; then
     WO_ID=$(printf '%s' "$RESP_BODY" | jq -r '.id')
     pass "Admin created work order (201)"
 
-    # Coach attempts to transition this work order (not assigned to them)
+    # Coach attempts to transition this work order (not assigned to them).
+    # Uses the canonical field name `to_status` (the handler also accepts
+    # `new_status` as an alias, but canonical is preferred for test clarity).
     raw=$(http_patch "/work-orders/$WO_ID/transition" \
-        '{"new_status":"in_progress","comment":"Should be forbidden"}' \
+        '{"to_status":"in_progress","processing_notes":"Should be forbidden"}' \
         "$COACH_TOKEN")
     split_response "$raw"
     assert_status "403" "$RESP_STATUS" "Coach cannot transition work order not assigned to them (403)"
+    assert_json_present "$RESP_BODY" ".error" "403 body has error field"
 
-    # Member attempting work-order transition also rejected
+    # Member attempting work-order transition — strict 403 (authenticated but
+    # not authorized).  Previously accepted 401 as well, but the member IS
+    # authenticated — only the role check should fail.
     raw=$(http_patch "/work-orders/$WO_ID/transition" \
-        '{"new_status":"in_progress","comment":"Member should be forbidden"}' \
+        '{"to_status":"in_progress","processing_notes":"Member should be forbidden"}' \
         "$MEMBER_TOKEN")
     split_response "$raw"
-    # Members have no role to transition — expect 403
-    if [ "$RESP_STATUS" = "403" ] || [ "$RESP_STATUS" = "401" ]; then
-        pass "Member cannot transition work order (${RESP_STATUS})"
-    else
-        fail "Member transition should be rejected, got $RESP_STATUS"
-    fi
+    assert_status "403" "$RESP_STATUS" "Member cannot transition work order (403)"
+    assert_json_present "$RESP_BODY" ".error" "Member 403 body has error field"
 else
     echo "  SKIP: work-order creation failed ($RESP_STATUS) — skipping object-level auth tests"
     PASS=$((PASS + 2))
@@ -180,35 +193,26 @@ fi
 echo ""
 echo "  ── F: Duplicate metric entry 409 ──"
 
-# Use the seeded 'weight' metric type (fixed UUID from migration 00005)
-METRIC_TYPE_ID="00000000-0000-0000-0002-000000000001"
-# Use a unique date per run to avoid collisions with prior test runs
-ENTRY_DATE="2025-06-15"
-METRIC_BODY='{"member_id":"'"$MEMBER_ID"'","metric_type":"weight",
-              "value":80.5,"entry_date":"'"$ENTRY_DATE"'"}'
+# Deterministic duplicate test: use `hip` (untouched by other suites) and a
+# per-run date derived from epoch seconds to guarantee a clean first insert.
+# Range: 2019-01-01 … 2019-01-28 — cycles every 28 seconds, well outside
+# any date used by test_03, test_06, etc.
+DD=$(printf "%02d" $(( $(date -u +%s) % 28 + 1 )))
+ENTRY_DATE="2019-01-$DD"
+METRIC_BODY='{"member_id":"'"$MEMBER_ID"'","metric_type":"hip",
+              "value":38.5,"entry_date":"'"$ENTRY_DATE"'"}'
 
-# First insert — should succeed (201) or may already exist (409)
+# First insert — must be 201 (fresh date + unused metric type).
 raw=$(http_post "/metrics" "$METRIC_BODY" "$ADMIN_TOKEN")
 split_response "$raw"
-FIRST_STATUS="$RESP_STATUS"
+assert_status "201" "$RESP_STATUS" "First metric entry created (201)"
 
-if [ "$FIRST_STATUS" = "201" ]; then
-    pass "First metric entry created (201)"
-
-    # Second insert — same member + type + date → 409 Conflict
-    raw=$(http_post "/metrics" "$METRIC_BODY" "$ADMIN_TOKEN")
-    split_response "$raw"
-    assert_status "409" "$RESP_STATUS" "Duplicate metric entry returns 409 Conflict"
-elif [ "$FIRST_STATUS" = "409" ]; then
-    pass "Metric entry already exists — 409 on first attempt (test data collision, expected)"
-    # Confirm a second attempt also returns 409
-    raw=$(http_post "/metrics" "$METRIC_BODY" "$ADMIN_TOKEN")
-    split_response "$raw"
-    assert_status "409" "$RESP_STATUS" "Subsequent duplicate metric entry also returns 409"
-else
-    fail "Metric entry returned unexpected status $FIRST_STATUS (expected 201 or 409)"
-    PASS=$((PASS + 1))  # placeholder for the skipped second assertion
-fi
+# Second insert — same member + type + date → 409 Conflict.
+raw=$(http_post "/metrics" "$METRIC_BODY" "$ADMIN_TOKEN")
+split_response "$raw"
+assert_status "409" "$RESP_STATUS" "Duplicate metric entry returns 409 Conflict"
+# Verify the 409 body carries the standard error envelope.
+assert_json_present "$RESP_BODY" ".error" "409 body has error field"
 
 # =============================================================================
 # Section G: Multi-session rate-limit sharing

@@ -6,18 +6,9 @@ use std::sync::{
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
-mod api;
-mod auth;
-mod config;
-mod crypto;
-mod db;
-mod errors;
-mod metrics;
-mod middleware;
-mod models;
-mod notifications;
-mod schema;
-mod security;
+// Re-use the shared library crate (see `src/lib.rs`) so that integration
+// tests in `tests/` and the production binary run the exact same code.
+use vitalpath::{api, config, crypto, db, metrics, middleware, notifications, security};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

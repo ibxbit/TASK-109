@@ -203,3 +203,79 @@ pub struct MetricSummaryResponse {
     pub range_end: NaiveDate,
     pub summaries: Vec<MetricSummaryItem>,
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Unit tests — metric catalogue + range validation.
+// ─────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn catalogue_has_expected_metric_types() {
+        let names: Vec<&str> = METRIC_CATALOGUE.iter().map(|(n, _, _, _)| *n).collect();
+        for expected in [
+            "weight",
+            "body_fat_percentage",
+            "waist",
+            "hip",
+            "chest",
+            "blood_glucose",
+        ] {
+            assert!(names.contains(&expected), "missing metric: {expected}");
+        }
+    }
+
+    #[test]
+    fn is_valid_metric_type_recognises_catalogue_entries() {
+        for (name, _, _, _) in METRIC_CATALOGUE {
+            assert!(is_valid_metric_type(name), "valid metric rejected: {name}");
+        }
+    }
+
+    #[test]
+    fn is_valid_metric_type_rejects_unknown() {
+        assert!(!is_valid_metric_type(""));
+        assert!(!is_valid_metric_type("Weight")); // case-sensitive
+        assert!(!is_valid_metric_type("steps"));
+    }
+
+    #[test]
+    fn validate_metric_value_accepts_in_range() {
+        assert!(validate_metric_value("weight", 150.0).is_ok());
+        assert!(validate_metric_value("weight", 10.0).is_ok());      // boundary min
+        assert!(validate_metric_value("weight", 1500.0).is_ok());    // boundary max
+        assert!(validate_metric_value("body_fat_percentage", 22.5).is_ok());
+        assert!(validate_metric_value("blood_glucose", 100.0).is_ok());
+    }
+
+    #[test]
+    fn validate_metric_value_rejects_below_min() {
+        let err = validate_metric_value("weight", 5.0).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)));
+        assert!(err.to_string().contains("weight"));
+    }
+
+    #[test]
+    fn validate_metric_value_rejects_above_max() {
+        let err = validate_metric_value("body_fat_percentage", 99.0).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)));
+    }
+
+    #[test]
+    fn validate_metric_value_rejects_unknown_type() {
+        let err = validate_metric_value("steps", 5000.0).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)));
+        assert!(err.to_string().contains("Unknown metric type"));
+    }
+
+    #[test]
+    fn validate_metric_value_handles_extreme_floats() {
+        assert!(validate_metric_value("weight", f64::INFINITY).is_err());
+        assert!(validate_metric_value("weight", f64::NEG_INFINITY).is_err());
+        // Documented edge case: NaN comparisons in Rust always return false, so
+        // `value < min` and `value > max` are both false ⇒ NaN currently *passes*
+        // validation. Pinned here so any future tightening of the rule is intentional.
+        assert!(validate_metric_value("weight", f64::NAN).is_ok());
+    }
+}

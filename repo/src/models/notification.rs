@@ -285,3 +285,87 @@ impl From<NotificationSchedule> for ScheduleResponse {
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Unit tests — constants and request DTO validation.
+// ─────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use validator::Validate;
+
+    #[test]
+    fn event_type_catalogue_is_complete() {
+        let expected = [
+            "sla_breach",
+            "return_for_edit",
+            "scheduled_reminder",
+            "work_order_assigned",
+            "workflow_action",
+            "manual",
+        ];
+        assert_eq!(VALID_EVENT_TYPES.len(), expected.len());
+        for e in expected {
+            assert!(VALID_EVENT_TYPES.contains(&e), "missing event type {e}");
+        }
+    }
+
+    #[test]
+    fn limits_have_expected_values() {
+        // Pinned because changing these affects production rate-limit / retry budget.
+        assert_eq!(MAX_DAILY_SENDS_PER_TEMPLATE, 3);
+        assert_eq!(MAX_DELIVERY_ATTEMPTS, 6);
+    }
+
+    fn req(title: &str, body: &str) -> CreateNotificationRequest {
+        CreateNotificationRequest {
+            user_id:     Uuid::new_v4(),
+            template_id: None,
+            event_type:  Some("manual".into()),
+            title:       title.into(),
+            body:        body.into(),
+            entity_type: None,
+            entity_id:   None,
+        }
+    }
+
+    #[test]
+    fn create_notification_request_accepts_normal_payload() {
+        assert!(req("Hello", "Body text").validate().is_ok());
+    }
+
+    #[test]
+    fn create_notification_request_rejects_empty_title_or_body() {
+        assert!(req("", "body").validate().is_err());
+        assert!(req("title", "").validate().is_err());
+    }
+
+    #[test]
+    fn create_notification_request_rejects_oversized_title() {
+        assert!(req(&"x".repeat(301), "body").validate().is_err());
+    }
+
+    #[test]
+    fn create_notification_request_rejects_oversized_body() {
+        assert!(req("t", &"x".repeat(5001)).validate().is_err());
+    }
+
+    #[test]
+    fn create_notification_request_accepts_max_lengths() {
+        assert!(req(&"x".repeat(300), &"x".repeat(5000)).validate().is_ok());
+    }
+
+    #[test]
+    fn create_schedule_request_validates_label_length() {
+        let mk = |label: String| CreateScheduleRequest {
+            user_id:           None,
+            template_id:       None,
+            label,
+            fire_hour:         9,
+            tz_offset_minutes: 0,
+        };
+        assert!(mk("daily reminder".into()).validate().is_ok());
+        assert!(mk("".into()).validate().is_err());
+        assert!(mk("x".repeat(201)).validate().is_err());
+    }
+}

@@ -1,0 +1,11 @@
+# Local override used only for this task run.
+# - The host's 5432 is taken by another project's Postgres, so we drop the
+#   publish on db (the app reaches it over the internal compose network).
+# - Same for the app's 8080 → we use 18080 on the host to avoid collision
+#   with anything the user might have bound locally.
+services:
+  db:
+    ports: !reset []
+  app:
+    ports:
+      - "18080:8080"

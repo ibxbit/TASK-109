@@ -18,9 +18,12 @@ TODAY=$(date -u +%Y-%m-%d)
 TS=$(date -u +%s)
 
 # ── Test 1: Write a metric, re-read, verify it's persisted ───
-ENTRY_VAL="155.$(( TS % 100 ))"  # unique-ish value per run
+# Use a metric type no other suite writes so the unique constraint
+# (member_id, metric_type_id, entry_date) from migration 20260413000016
+# doesn't collide with metrics recorded earlier in the same test run.
+ENTRY_VAL="35.$(( TS % 100 ))"  # waist circumference range, unique-ish per run
 raw=$(http_post "/metrics" \
-    "{\"member_id\":\"$MEMBER_ID\",\"metric_type\":\"weight\",
+    "{\"member_id\":\"$MEMBER_ID\",\"metric_type\":\"waist\",
       \"value\":$ENTRY_VAL,\"entry_date\":\"$TODAY\",
       \"notes\":\"persistence_test_$TS\"}" \
     "$COACH_TOKEN")

@@ -21,15 +21,19 @@ WORKDIR /app
 
 # Cache dependency compilation separately from application source.
 # This layer is only invalidated when Cargo.toml or Cargo.lock change.
+# Both src/main.rs (binary) and src/lib.rs (library re-exports for tests)
+# need stub files so cargo emits both targets and the dep cache covers them.
 COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs \
+RUN mkdir src \
+ && echo "fn main() {}" > src/main.rs \
+ && echo "" > src/lib.rs \
  && cargo build --release \
- && rm -f target/release/vitalpath src/main.rs
+ && rm -f target/release/vitalpath src/main.rs src/lib.rs
 
 # Build the actual application
 COPY . .
 # touch all rust files so their mtime is newer than the cache, forcing recompilation
-RUN touch src/main.rs && cargo build --release
+RUN touch src/main.rs src/lib.rs && cargo build --release
 
 # ─── Runtime stage ───────────────────────────────────────────────────────────
 # Use the same base as the builder stage to guarantee all runtime libraries

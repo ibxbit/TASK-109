@@ -125,12 +125,14 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use actix_web::test::TestRequest;
+
+    const SECRET: &str = "test-secret-key";
 
     #[test]
     fn hmac_roundtrip() {
-        let secret = "test-secret-key";
-        let msg    = "1712345678:POST:/analytics/export";
-        let sig    = compute_hmac_hex(secret, msg);
+        let msg = "1712345678:POST:/analytics/export";
+        let sig = compute_hmac_hex(SECRET, msg);
         assert_eq!(sig.len(), 64); // 32 bytes → 64 hex chars
         assert!(constant_time_eq(sig.as_bytes(), sig.as_bytes()));
     }
@@ -138,5 +140,124 @@ mod tests {
     #[test]
     fn constant_time_different_lengths_false() {
         assert!(!constant_time_eq(b"abc", b"abcd"));
+    }
+
+    #[test]
+    fn constant_time_equal_bytes_true() {
+        assert!(constant_time_eq(b"hello", b"hello"));
+        assert!(constant_time_eq(b"", b""));
+    }
+
+    #[test]
+    fn constant_time_one_byte_diff_false() {
+        assert!(!constant_time_eq(b"hellO", b"hello"));
+    }
+
+    #[test]
+    fn hmac_known_test_vector() {
+        // Sanity vector — same secret + same message must always
+        // produce the same signature (deterministic).
+        let a = compute_hmac_hex("k", "m");
+        let b = compute_hmac_hex("k", "m");
+        assert_eq!(a, b);
+        assert_ne!(compute_hmac_hex("k1", "m"), compute_hmac_hex("k2", "m"));
+        assert_ne!(compute_hmac_hex("k", "m1"), compute_hmac_hex("k", "m2"));
+    }
+
+    /// Build a TestRequest with valid timestamp + correct signature.
+    fn signed_request(method: &str, path: &str, secret: &str) -> actix_web::HttpRequest {
+        let ts = chrono::Utc::now().timestamp();
+        let msg = format!("{}:{}:{}", ts, method, path);
+        let sig = compute_hmac_hex(secret, &msg);
+        TestRequest::with_uri(path)
+            .method(method.parse().unwrap())
+            .insert_header(("X-Timestamp", ts.to_string()))
+            .insert_header(("X-Signature", sig))
+            .to_http_request()
+    }
+
+    #[test]
+    fn verify_accepts_valid_signature() {
+        let req = signed_request("POST", "/analytics/export", SECRET);
+        assert!(verify(&req, SECRET).is_ok());
+    }
+
+    #[test]
+    fn verify_rejects_missing_timestamp_header() {
+        let req = TestRequest::with_uri("/x")
+            .insert_header(("X-Signature", "deadbeef"))
+            .to_http_request();
+        let err = verify(&req, SECRET).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)));
+    }
+
+    #[test]
+    fn verify_rejects_missing_signature_header() {
+        let req = TestRequest::with_uri("/x")
+            .insert_header(("X-Timestamp", "1712345678"))
+            .to_http_request();
+        let err = verify(&req, SECRET).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)));
+    }
+
+    #[test]
+    fn verify_rejects_non_numeric_timestamp() {
+        let req = TestRequest::with_uri("/x")
+            .insert_header(("X-Timestamp", "not-a-number"))
+            .insert_header(("X-Signature", "deadbeef"))
+            .to_http_request();
+        let err = verify(&req, SECRET).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)));
+    }
+
+    #[test]
+    fn verify_rejects_old_timestamp() {
+        let ts = chrono::Utc::now().timestamp() - (TIMESTAMP_TOLERANCE_SECS + 60);
+        let msg = format!("{}:GET:/x", ts);
+        let sig = compute_hmac_hex(SECRET, &msg);
+        let req = TestRequest::with_uri("/x")
+            .insert_header(("X-Timestamp", ts.to_string()))
+            .insert_header(("X-Signature", sig))
+            .to_http_request();
+        let err = verify(&req, SECRET).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)));
+    }
+
+    #[test]
+    fn verify_rejects_future_timestamp() {
+        let ts = chrono::Utc::now().timestamp() + (TIMESTAMP_TOLERANCE_SECS + 60);
+        let msg = format!("{}:GET:/x", ts);
+        let sig = compute_hmac_hex(SECRET, &msg);
+        let req = TestRequest::with_uri("/x")
+            .insert_header(("X-Timestamp", ts.to_string()))
+            .insert_header(("X-Signature", sig))
+            .to_http_request();
+        let err = verify(&req, SECRET).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)));
+    }
+
+    #[test]
+    fn verify_rejects_bad_signature() {
+        let ts = chrono::Utc::now().timestamp();
+        let req = TestRequest::with_uri("/x")
+            .method(actix_web::http::Method::POST)
+            .insert_header(("X-Timestamp", ts.to_string()))
+            .insert_header(("X-Signature", "0".repeat(64)))
+            .to_http_request();
+        let err = verify(&req, SECRET).unwrap_err();
+        assert!(matches!(err, AppError::Forbidden));
+    }
+
+    #[test]
+    fn verify_rejects_signature_signed_with_other_secret() {
+        let ts = chrono::Utc::now().timestamp();
+        let msg = format!("{}:POST:/x", ts);
+        let sig = compute_hmac_hex("OTHER-SECRET", &msg);
+        let req = TestRequest::with_uri("/x")
+            .method(actix_web::http::Method::POST)
+            .insert_header(("X-Timestamp", ts.to_string()))
+            .insert_header(("X-Signature", sig))
+            .to_http_request();
+        assert!(matches!(verify(&req, SECRET), Err(AppError::Forbidden)));
     }
 }

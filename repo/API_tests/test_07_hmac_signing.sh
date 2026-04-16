@@ -59,16 +59,13 @@ raw=$(curl -s -w "\n%{http_code}" \
     -H "X-Signature: $SIG" \
     -d "$EXPORT_BODY")
 split_response "$raw"
-# 201 Created (export generated) or 200 — both indicate HMAC was accepted
-if [ "$RESP_STATUS" = "201" ] || [ "$RESP_STATUS" = "200" ]; then
-    pass "Valid HMAC accepted (HTTP $RESP_STATUS)"
-    assert_json_present "$RESP_BODY" ".filename"    "Export response has filename"
-    assert_json_present "$RESP_BODY" ".download_url" "Export response has download_url"
-elif [ "$RESP_STATUS" = "400" ] || [ "$RESP_STATUS" = "403" ]; then
-    fail "Valid HMAC rejected — got $RESP_STATUS: $RESP_BODY"
-else
-    fail "Unexpected status for valid HMAC: $RESP_STATUS"
-fi
+# Handler returns 201 Created (export generated).
+assert_status "201" "$RESP_STATUS" "Valid HMAC accepted → 201 Created"
+assert_json_present "$RESP_BODY" ".export_id"    "Export response has export_id"
+assert_json_present "$RESP_BODY" ".filename"     "Export response has filename"
+assert_json_present "$RESP_BODY" ".download_url" "Export response has download_url"
+assert_json_field   "$RESP_BODY" ".format" "csv" "Export format echoed as csv"
+assert_json_present "$RESP_BODY" ".size_bytes"   "Export response has size_bytes"
 
 # ── Test 2: Missing X-Timestamp → 400 ────────────────────────
 raw=$(curl -s -w "\n%{http_code}" \
@@ -79,7 +76,8 @@ raw=$(curl -s -w "\n%{http_code}" \
     -d "$EXPORT_BODY")
 split_response "$raw"
 assert_status "400" "$RESP_STATUS" "Missing X-Timestamp returns 400"
-assert_json_present "$RESP_BODY" ".message" "400 has message field"
+assert_json_present "$RESP_BODY" ".error"   "400 body has error field"
+assert_json_present "$RESP_BODY" ".message" "400 body has message field"
 
 # ── Test 3: Missing X-Signature → 400 ────────────────────────
 TS2=$(date -u +%s)
@@ -91,6 +89,8 @@ raw=$(curl -s -w "\n%{http_code}" \
     -d "$EXPORT_BODY")
 split_response "$raw"
 assert_status "400" "$RESP_STATUS" "Missing X-Signature returns 400"
+assert_json_present "$RESP_BODY" ".error"   "Missing-sig 400 has error field"
+assert_json_present "$RESP_BODY" ".message" "Missing-sig 400 has message field"
 
 # ── Test 4: Wrong signature → 403 ────────────────────────────
 TS3=$(date -u +%s)
@@ -103,6 +103,7 @@ raw=$(curl -s -w "\n%{http_code}" \
     -d "$EXPORT_BODY")
 split_response "$raw"
 assert_status "403" "$RESP_STATUS" "Wrong X-Signature returns 403"
+assert_json_present "$RESP_BODY" ".error" "Wrong-sig 403 has error field"
 
 # ── Test 5: Signature for wrong method → 403 ─────────────────
 TS4=$(date -u +%s)
@@ -160,6 +161,8 @@ raw=$(curl -s -w "\n%{http_code}" \
     -d "$EXPORT_BODY")
 split_response "$raw"
 assert_status "401" "$RESP_STATUS" "Unauthenticated request rejected before HMAC check (401)"
+assert_json_present "$RESP_BODY" ".error"   "Unauth 401 has error field"
+assert_json_present "$RESP_BODY" ".message" "Unauth 401 has message field"
 
 # ── Test 9: Member role + valid HMAC → 403 (role checked before HMAC) ────────
 MEMBER_TOKEN=$(login "$MEMBER_USER" "$MEMBER_PASS")
@@ -174,5 +177,6 @@ raw=$(curl -s -w "\n%{http_code}" \
     -d "$EXPORT_BODY")
 split_response "$raw"
 assert_status "403" "$RESP_STATUS" "Member role rejected regardless of valid HMAC (403)"
+assert_json_present "$RESP_BODY" ".error" "Member 403 has error field"
 
 summary

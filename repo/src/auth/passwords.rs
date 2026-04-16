@@ -22,3 +22,46 @@ pub fn verify(password: &str, phc_hash: &str) -> bool {
         .verify_password(password.as_bytes(), &parsed)
         .is_ok()
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Unit tests — Argon2 hash/verify roundtrip.
+//
+// `Argon2::default()` uses the OWASP-recommended memory-hard params,
+// so each test takes ~50–100 ms. Keeping the number of tests small.
+// ─────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hash_then_verify_succeeds() {
+        let phc = hash("correct-horse-battery-staple").expect("hash");
+        assert!(phc.starts_with("$argon2"));
+        assert!(verify("correct-horse-battery-staple", &phc));
+    }
+
+    #[test]
+    fn verify_wrong_password_returns_false() {
+        let phc = hash("secret").expect("hash");
+        assert!(!verify("not-secret", &phc));
+    }
+
+    #[test]
+    fn verify_malformed_hash_returns_false_without_panic() {
+        // Must not panic on garbage input — security invariant.
+        assert!(!verify("anything", ""));
+        assert!(!verify("anything", "definitely not a PHC string"));
+        assert!(!verify("anything", "$argon2id$v=19$bad"));
+    }
+
+    #[test]
+    fn distinct_hashes_for_same_password() {
+        // Each call generates a fresh salt ⇒ hashes must differ.
+        let a = hash("same").unwrap();
+        let b = hash("same").unwrap();
+        assert_ne!(a, b);
+        // Both must still verify.
+        assert!(verify("same", &a));
+        assert!(verify("same", &b));
+    }
+}

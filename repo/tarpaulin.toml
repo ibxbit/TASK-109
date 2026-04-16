@@ -1,0 +1,49 @@
+# cargo-tarpaulin coverage configuration
+# Run with: cargo tarpaulin --config tarpaulin.toml
+#
+# Tarpaulin is Linux-only. On Windows / macOS, run via Docker:
+#   docker run --rm -v "$(pwd):/volume" xd009642/tarpaulin \
+#       cargo tarpaulin --config tarpaulin.toml
+
+[default]
+# Run every Rust-native test (lib unit tests + tests/ integration tests).
+# Bash-based API tests under API_tests/ and unit_tests/ are NOT included
+# here — they exercise the running binary, not in-process code paths,
+# and continue to provide additional black-box coverage in CI.
+features  = []
+workspace = true
+timeout   = "300s"
+
+# Skip generated / external code that doesn't represent business logic.
+exclude-files = [
+    "src/main.rs",         # Process bootstrap; covered by API smoke tests.
+    "src/schema.rs",       # Diesel-generated table macros.
+    "migrations/*",
+    "target/*",
+    "tests/*",             # Don't measure coverage of test code itself.
+]
+
+# Engines:
+#   "Llvm"  — fast, accurate; default on Linux when LLVM is available.
+#   "Auto"  — picks the best available engine.
+engine = "Llvm"
+
+# Output formats: produce a console summary, an LCOV file (suitable for
+# Codecov / Coveralls upload), an HTML report under target/tarpaulin/,
+# and a JSON manifest for badge generators.
+out = ["Stdout", "Lcov", "Html", "Json"]
+output-dir = "target/tarpaulin"
+
+# Coverage gate. Builds fail when coverage drops below this floor —
+# this is the policy that keeps coverage from regressing over time.
+fail-under = 90.0
+
+# Re-run flaky tests once before reporting failure.
+rerun-flaky-tests = 1
+
+# Ignore the actix_web::test runtime for coverage — the macro-generated
+# wrapper inflates "uncovered" counts artificially.
+ignore-tests = false
+
+# Capture stdout/stderr from tests on failure for easier debugging.
+nocapture = false

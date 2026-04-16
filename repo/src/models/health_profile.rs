@@ -180,3 +180,93 @@ pub struct HealthProfileUpdateResponse {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Unit tests — enum validation + request DTO range checks.
+// ─────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use validator::Validate;
+
+    #[test]
+    fn valid_sex_constant_matches_validator() {
+        for s in VALID_SEX {
+            assert!(is_valid_sex(s), "expected `{}` to be valid", s);
+        }
+    }
+
+    #[test]
+    fn is_valid_sex_rejects_unknown() {
+        assert!(!is_valid_sex(""));
+        assert!(!is_valid_sex("Male")); // case-sensitive
+        assert!(!is_valid_sex("unknown"));
+    }
+
+    #[test]
+    fn valid_activity_level_constant_matches_validator() {
+        for level in VALID_ACTIVITY_LEVEL {
+            assert!(is_valid_activity_level(level));
+        }
+    }
+
+    #[test]
+    fn is_valid_activity_level_rejects_unknown() {
+        assert!(!is_valid_activity_level(""));
+        assert!(!is_valid_activity_level("athletic")); // not in catalogue
+        assert!(!is_valid_activity_level("VERY_ACTIVE")); // case-sensitive
+    }
+
+    fn req(height: f64, weight: f64) -> CreateHealthProfileRequest {
+        CreateHealthProfileRequest {
+            member_id:      Uuid::new_v4(),
+            sex:            "male".into(),
+            height_in:      height,
+            weight_lbs:     weight,
+            activity_level: "moderately_active".into(),
+            dietary_notes:  None,
+            medical_notes:  None,
+        }
+    }
+
+    #[test]
+    fn create_request_accepts_valid_ranges() {
+        assert!(req(70.0, 180.0).validate().is_ok());
+        // Boundaries.
+        assert!(req(12.0, 10.0).validate().is_ok());
+        assert!(req(120.0, 1500.0).validate().is_ok());
+    }
+
+    #[test]
+    fn create_request_rejects_height_out_of_range() {
+        assert!(req(11.0, 180.0).validate().is_err());
+        assert!(req(121.0, 180.0).validate().is_err());
+    }
+
+    #[test]
+    fn create_request_rejects_weight_out_of_range() {
+        assert!(req(70.0, 9.0).validate().is_err());
+        assert!(req(70.0, 1501.0).validate().is_err());
+    }
+
+    #[test]
+    fn create_request_rejects_oversized_dietary_notes() {
+        let mut r = req(70.0, 180.0);
+        r.dietary_notes = Some("x".repeat(1001));
+        assert!(r.validate().is_err());
+    }
+
+    #[test]
+    fn create_request_accepts_max_length_dietary_notes() {
+        let mut r = req(70.0, 180.0);
+        r.dietary_notes = Some("x".repeat(1000));
+        assert!(r.validate().is_ok());
+    }
+
+    #[test]
+    fn create_request_rejects_oversized_medical_notes() {
+        let mut r = req(70.0, 180.0);
+        r.medical_notes = Some("x".repeat(2001));
+        assert!(r.validate().is_err());
+    }
+}

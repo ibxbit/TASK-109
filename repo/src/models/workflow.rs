@@ -235,6 +235,98 @@ impl From<WorkflowNode> for NodeResponse {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Unit tests — pinned constants and DTO validation.
+// ─────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use validator::Validate;
+
+    #[test]
+    fn action_types_pinned() {
+        for a in ["review", "approve", "notify", "complete"] {
+            assert!(VALID_ACTION_TYPES.contains(&a), "missing {a}");
+        }
+        assert_eq!(VALID_ACTION_TYPES.len(), 4);
+    }
+
+    #[test]
+    fn risk_tiers_pinned() {
+        for t in ["low", "medium", "high", "critical"] {
+            assert!(VALID_RISK_TIERS.contains(&t), "missing risk tier {t}");
+        }
+    }
+
+    #[test]
+    fn amount_tiers_pinned() {
+        for t in ["under_1k", "1k_10k", "10k_100k", "over_100k"] {
+            assert!(VALID_AMOUNT_TIERS.contains(&t), "missing amount tier {t}");
+        }
+    }
+
+    #[test]
+    fn workflow_actions_pinned() {
+        for a in [
+            "submit", "approve", "reject",
+            "return_for_edit", "withdraw", "reassign", "additional_sign_off",
+        ] {
+            assert!(VALID_WORKFLOW_ACTIONS.contains(&a), "missing action {a}");
+        }
+    }
+
+    fn template_req(name: &str) -> CreateTemplateRequest {
+        CreateTemplateRequest {
+            name: name.into(),
+            description: None,
+            business_type: None,
+            org_unit_id: None,
+            risk_tier: None,
+            amount_tier: None,
+        }
+    }
+
+    #[test]
+    fn create_template_request_accepts_valid_name() {
+        assert!(template_req("My Template").validate().is_ok());
+    }
+
+    #[test]
+    fn create_template_request_rejects_empty_name() {
+        assert!(template_req("").validate().is_err());
+    }
+
+    #[test]
+    fn create_template_request_rejects_oversized_name() {
+        assert!(template_req(&"x".repeat(201)).validate().is_err());
+    }
+
+    #[test]
+    fn add_node_request_accepts_valid_action_type_field() {
+        let req = AddNodeRequest {
+            name: "Node 1".into(),
+            node_order: 1,
+            is_parallel: false,
+            role_required: None,
+            action_type: "approve".into(),
+        };
+        assert!(req.validate().is_ok());
+    }
+
+    #[test]
+    fn workflow_action_request_validates_comment_length() {
+        let mk = |comment: Option<String>| WorkflowActionRequest {
+            action: "approve".into(),
+            comment,
+            new_assignee_id: None,
+            additional_approver_id: None,
+        };
+        assert!(mk(None).validate().is_ok());
+        assert!(mk(Some("ok".into())).validate().is_ok());
+        assert!(mk(Some("x".repeat(2001))).validate().is_err());
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct ApprovalResponse {
     pub id: Uuid,

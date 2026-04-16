@@ -197,3 +197,106 @@ pub fn guard_transition(from: &str, to: &str) -> Result<(), AppError> {
         )))
     }
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Unit tests — exhaustive coverage of the work-order state machine.
+//
+// Every (from, to) pair documented in `guard_transition`'s docs is
+// pinned so an accidental edit to the allow-list is loud.
+// ─────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn allowed_transitions_succeed() {
+        let allowed: &[(&str, &str)] = &[
+            ("intake", "triage"),
+            ("intake", "closed"),
+            ("triage", "in_progress"),
+            ("triage", "closed"),
+            ("in_progress", "waiting_on_member"),
+            ("in_progress", "resolved"),
+            ("waiting_on_member", "in_progress"),
+            ("waiting_on_member", "closed"),
+            ("resolved", "closed"),
+        ];
+        for (from, to) in allowed {
+            assert!(
+                guard_transition(from, to).is_ok(),
+                "expected {from} → {to} to be allowed"
+            );
+        }
+    }
+
+    #[test]
+    fn disallowed_transitions_are_rejected() {
+        let disallowed: &[(&str, &str)] = &[
+            ("intake", "in_progress"),       // must go through triage
+            ("intake", "resolved"),
+            ("triage", "waiting_on_member"), // skipping in_progress
+            ("triage", "resolved"),
+            ("in_progress", "intake"),       // no going backwards
+            ("in_progress", "closed"),       // must resolve first
+            ("waiting_on_member", "resolved"),
+            ("resolved", "in_progress"),     // resolved is one-way
+            ("resolved", "intake"),
+        ];
+        for (from, to) in disallowed {
+            let err = guard_transition(from, to).unwrap_err();
+            assert!(matches!(err, AppError::BadRequest(_)), "for {from}→{to}");
+            let msg = err.to_string();
+            assert!(msg.contains("not allowed"));
+        }
+    }
+
+    #[test]
+    fn closed_is_terminal() {
+        // closed has zero allowed targets — every attempt fails.
+        for to in &["intake", "triage", "in_progress", "waiting_on_member", "resolved", "closed"] {
+            let err = guard_transition("closed", to).unwrap_err();
+            assert!(err.to_string().contains("terminal"));
+        }
+    }
+
+    #[test]
+    fn unknown_from_status_is_bad_request() {
+        let err = guard_transition("zombie", "closed").unwrap_err();
+        match err {
+            AppError::BadRequest(msg) => assert!(msg.contains("unknown status")),
+            other => panic!("expected BadRequest, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn invalid_to_status_is_bad_request_with_targets_listed() {
+        let err = guard_transition("intake", "invented").unwrap_err();
+        match err {
+            AppError::BadRequest(msg) => {
+                assert!(msg.contains("intake"));
+                assert!(msg.contains("invented"));
+                assert!(msg.contains("triage"));   // valid target
+                assert!(msg.contains("closed"));   // valid target
+            }
+            other => panic!("expected BadRequest, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn no_self_transitions_allowed() {
+        for status in VALID_STATUSES {
+            assert!(
+                guard_transition(status, status).is_err(),
+                "self-transition {status}→{status} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn constants_match_state_machine_universe() {
+        // VALID_STATUSES must be the same set as the from-states the machine knows.
+        for status in &["intake", "triage", "in_progress", "waiting_on_member", "resolved", "closed"] {
+            assert!(VALID_STATUSES.contains(status), "missing status {status}");
+        }
+    }
+}

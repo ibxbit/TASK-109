@@ -220,3 +220,96 @@ pub struct GoalListResponse {
     pub total: usize,
     pub goals: Vec<GoalResponse>,
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Unit tests — goal-type catalogue, completion logic, direction guard.
+// ─────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn goal_metric_name_maps_known_types() {
+        assert_eq!(goal_metric_name("fat_loss"), Some("body_fat_percentage"));
+        assert_eq!(goal_metric_name("muscle_gain"), Some("weight"));
+        assert_eq!(goal_metric_name("glucose_control"), Some("blood_glucose"));
+    }
+
+    #[test]
+    fn goal_metric_name_unknown_returns_none() {
+        assert_eq!(goal_metric_name(""), None);
+        assert_eq!(goal_metric_name("FAT_LOSS"), None); // case-sensitive
+        assert_eq!(goal_metric_name("not_a_goal"), None);
+    }
+
+    #[test]
+    fn target_met_decreasing_goals() {
+        // fat_loss / glucose_control want value ≤ target.
+        assert!(target_met("fat_loss", 18.0, 20.0));
+        assert!(target_met("fat_loss", 20.0, 20.0)); // boundary: equal counts.
+        assert!(!target_met("fat_loss", 25.0, 20.0));
+
+        assert!(target_met("glucose_control", 90.0, 100.0));
+        assert!(!target_met("glucose_control", 130.0, 100.0));
+    }
+
+    #[test]
+    fn target_met_increasing_goal() {
+        // muscle_gain wants value ≥ target.
+        assert!(target_met("muscle_gain", 200.0, 180.0));
+        assert!(target_met("muscle_gain", 180.0, 180.0)); // boundary
+        assert!(!target_met("muscle_gain", 175.0, 180.0));
+    }
+
+    #[test]
+    fn target_met_unknown_type_never_met() {
+        assert!(!target_met("ufo", 1.0, 1.0));
+    }
+
+    #[test]
+    fn validate_goal_direction_accepts_correct_direction() {
+        assert!(validate_goal_direction("fat_loss", 25.0, 18.0).is_ok());
+        assert!(validate_goal_direction("glucose_control", 130.0, 100.0).is_ok());
+        assert!(validate_goal_direction("muscle_gain", 175.0, 200.0).is_ok());
+    }
+
+    #[test]
+    fn validate_goal_direction_rejects_wrong_direction_for_decreasing() {
+        let err = validate_goal_direction("fat_loss", 18.0, 25.0).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)));
+        assert!(err.to_string().contains("less than"));
+    }
+
+    #[test]
+    fn validate_goal_direction_rejects_wrong_direction_for_increasing() {
+        let err = validate_goal_direction("muscle_gain", 200.0, 175.0).unwrap_err();
+        assert!(matches!(err, AppError::BadRequest(_)));
+        assert!(err.to_string().contains("greater than"));
+    }
+
+    #[test]
+    fn validate_goal_direction_rejects_equal_baseline_and_target() {
+        // Equal target == baseline ⇒ no movement ⇒ rejected.
+        assert!(validate_goal_direction("fat_loss", 20.0, 20.0).is_err());
+        assert!(validate_goal_direction("muscle_gain", 180.0, 180.0).is_err());
+    }
+
+    #[test]
+    fn validate_goal_direction_unknown_type_passes() {
+        // Unknown types are not direction-validated (handler validates the type elsewhere).
+        assert!(validate_goal_direction("ufo", 0.0, 0.0).is_ok());
+    }
+
+    #[test]
+    fn valid_constants_are_what_handlers_expect() {
+        // Lock the catalogue so a silent change to the lists trips here.
+        assert_eq!(VALID_GOAL_TYPES.len(), 3);
+        for t in ["fat_loss", "muscle_gain", "glucose_control"] {
+            assert!(VALID_GOAL_TYPES.contains(&t), "missing goal type {t}");
+        }
+        assert_eq!(VALID_STATUSES.len(), 4);
+        for s in ["active", "paused", "completed", "cancelled"] {
+            assert!(VALID_STATUSES.contains(&s), "missing status {s}");
+        }
+    }
+}

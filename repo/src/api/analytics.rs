@@ -822,18 +822,30 @@ async fn export_analytics(
     let exports_dir = cfg.exports_dir.clone();
     let body       = body.into_inner();
 
+    let is_admin = user.role.is_admin();
     let meta = web::block(move || -> Result<ExportMeta, AppError> {
         let mut conn = pool.get().map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-        // Build the analytics query from the export request fields
+        // Enforce org isolation: non-admins are always scoped to their own org_unit_id
+        let effective_org = if is_admin {
+            body.org_unit_id
+        } else {
+            use crate::schema::users;
+            users::table
+                .find(actor_id)
+                .select(users::org_unit_id)
+                .first::<Option<Uuid>>(&mut conn)
+                .map_err(AppError::Database)?
+        };
+
         let as_query = AnalyticsQuery {
             start_date:  body.start_date,
             end_date:    body.end_date,
-            org_unit_id: body.org_unit_id,
+            org_unit_id: effective_org,
             ticket_type: body.ticket_type,
         };
 
-        let member_ids = load_member_ids(&mut conn, as_query.org_unit_id)?;
+        let member_ids = load_member_ids(&mut conn, effective_org)?;
         let filter = ResolvedFilter::parse(&as_query, member_ids)
             .map_err(AppError::BadRequest)?;
         let report = build_report(&mut conn, &filter)?;
@@ -943,8 +955,13 @@ async fn download_export(
     let filename_clone  = filename.clone();
 
     let bytes = tokio::task::spawn_blocking(move || {
-        std::fs::read(&file_path_owned)
-            .map_err(|e: std::io::Error| AppError::Internal(anyhow::anyhow!("read export file: {}", e)))
+        std::fs::read(&file_path_owned).map_err(|e: std::io::Error| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                AppError::NotFound(format!("export file '{}' not found", file_path_owned))
+            } else {
+                AppError::Internal(anyhow::anyhow!("read export file: {}", e))
+            }
+        })
     })
     .await
     .map_err(|e: tokio::task::JoinError| AppError::Internal(anyhow::anyhow!(e)))??;

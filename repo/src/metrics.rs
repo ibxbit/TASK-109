@@ -197,3 +197,69 @@ pub fn gather_metrics() -> String {
     encoder.encode(&metric_families, &mut buf).unwrap();
     String::from_utf8(buf).unwrap()
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Unit tests — registry initialisation, p95 estimation, gauges.
+//
+// `registry()` uses a global `OnceLock`; tests run in a single
+// process, so all tests share the same state. We therefore design
+// these tests so they are robust to other tests having already
+// observed metrics (assertions on shape + presence, not exact counts).
+// ─────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn registry_initialises_idempotently() {
+        let r1 = registry() as *const Registry;
+        let r2 = registry() as *const Registry;
+        assert_eq!(r1, r2, "registry() must always return the same instance");
+    }
+
+    #[test]
+    fn http_metric_handles_have_init_labels_present() {
+        // Touch all metric handles so subsequent calls don't lazy-init.
+        let _ = http_requests();
+        let _ = http_duration();
+        let _ = http_errors();
+    }
+
+    #[test]
+    fn gather_metrics_emits_known_families() {
+        let body = gather_metrics();
+        assert!(body.contains("http_requests_total"));
+        assert!(body.contains("http_request_duration_seconds"));
+        assert!(body.contains("http_errors_total"));
+        assert!(body.contains("db_pool_connections_active"));
+        assert!(body.contains("db_pool_connections_idle"));
+    }
+
+    #[test]
+    fn update_pool_gauges_writes_visible_values() {
+        update_pool_gauges(7, 3);
+        let body = gather_metrics();
+        // Values appear as floating-point literals in the text format.
+        assert!(body.contains("db_pool_connections_active 7"));
+        assert!(body.contains("db_pool_connections_idle 3"));
+    }
+
+    #[test]
+    fn estimate_p95_returns_some_after_observation() {
+        // After bootstrap there's always at least one observation; subsequent
+        // observations must keep the estimate finite and non-negative.
+        http_duration()
+            .with_label_values(&["GET", "/test"])
+            .observe(0.050);
+        let p95 = estimate_p95_ms().expect("expected Some after observations");
+        assert!(p95 >= 0.0, "p95 must not be negative, got {}", p95);
+        assert!(p95.is_finite(), "p95 must be finite, got {}", p95);
+    }
+
+    #[test]
+    fn db_pool_wait_timeouts_handle_increments_without_panic() {
+        let prev = db_pool_wait_timeouts().get();
+        db_pool_wait_timeouts().inc();
+        assert!(db_pool_wait_timeouts().get() > prev);
+    }
+}

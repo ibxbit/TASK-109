@@ -1,5 +1,9 @@
 # VitalPath Health Operations API
 
+**Type: backend**
+
+[![Coverage](https://img.shields.io/badge/coverage-tarpaulin-blue.svg)](./tarpaulin.toml) [![Tests](https://img.shields.io/badge/tests-cargo%20%2B%20bash-brightgreen.svg)](#running-tests)
+
 A secure, offline-capable health operations backend built with Rust (Actix-web 4), PostgreSQL 16, and Docker.
 
 ### Project Documentation
@@ -40,6 +44,7 @@ Created automatically on first startup. **Replace before any production use.**
 |----------|----------|------|
 | `admin` | `Admin1234!` | Administrator (full access) |
 | `coach` | `Coach1234!` | Care Coach (member + health data) |
+| `approver` | `Approver1234!` | Approver (workflow approvals) |
 | `member` | `Member1234!` | Member (own data only) |
 
 Fixed IDs for use in tests:
@@ -397,6 +402,77 @@ docker compose exec backup cat /backups/drill_history.csv
 
 ## Running Tests
 
+The project ships with **two complementary test layers**, both executed inside Docker:
+
+1. **Rust-native tests** — fast, in-process unit and integration tests covering business
+   logic, model validation, error handling, permission boundaries, middleware behaviour,
+   and cryptographic round-trips. No Postgres needed.
+2. **Bash API tests** (`./run_tests.sh`) — end-to-end black-box tests that exercise the
+   running binary against a live database in Docker.
+
+### Rust unit + integration tests
+
+All Rust tests run inside Docker — no local Rust toolchain required:
+
+```bash
+# Run every Rust test (unit modules under src/ + integration tests under tests/)
+docker compose run --rm app cargo test
+
+# Run a single test binary (file under tests/)
+docker compose run --rm app cargo test --test crypto_roundtrip
+
+# Run a single inline #[cfg(test)] mod
+docker compose run --rm app cargo test --lib auth::role::tests
+```
+
+The Rust test suite covers:
+
+| Area | Test location |
+|------|---------------|
+| AppError ↔ HTTP status code mapping | `src/errors.rs::tests`, `tests/error_responses.rs` |
+| AES-256-GCM field cipher (round-trip, tamper, key/nonce mismatch) | `src/crypto.rs::tests`, `tests/crypto_roundtrip.rs` |
+| Argon2id password hash + verify | `src/auth/passwords.rs::tests` |
+| Role parsing + permission helpers | `src/auth/role.rs::tests`, `tests/permission_boundaries.rs` |
+| CAPTCHA generate / verify (incl. expiry, tamper) | `src/auth/captcha.rs::tests` |
+| HMAC request signing (success + every failure path) | `src/security/hmac_sign.rs::tests` |
+| Sliding-window rate limiter (logic + middleware) | `src/security/rate_limit.rs::tests`, `tests/rate_limit_middleware.rs` |
+| Identifier masking | `src/security/masking.rs::tests` |
+| AppConfig env loading + panic paths | `src/config.rs::tests` |
+| Prometheus registry, p95 estimation, pool gauges | `src/metrics.rs::tests` |
+| Goal direction + completion logic | `src/models/goal.rs::tests` |
+| Metric type catalogue + range validation | `src/models/metric.rs::tests` |
+| Work-order state machine (full transition matrix) | `src/models/work_order.rs::tests` |
+| Health profile DTO validation | `src/models/health_profile.rs::tests` |
+| Analytics filter parsing + export validation | `src/models/analytics.rs::tests` |
+| Notification + workflow DTO + constants | `src/models/notification.rs::tests`, `src/models/workflow.rs::tests` |
+| Liveness endpoint + security headers | `tests/health_endpoints.rs`, `tests/security_headers.rs` |
+| Auth extractor (missing / malformed Bearer) | `tests/middleware_unauthenticated.rs` |
+
+### Code coverage
+
+Coverage is measured with [`cargo-tarpaulin`](https://github.com/xd009642/tarpaulin),
+configured in `tarpaulin.toml`. The configuration enforces a **90 % line-coverage
+floor** — `cargo tarpaulin` exits non-zero if coverage drops below this threshold
+(use this as a CI gate).
+
+```bash
+# Run coverage via Docker (works on Linux, Windows, and macOS — no local install needed).
+./scripts/coverage.sh --docker
+```
+
+Outputs land under `target/tarpaulin/`:
+
+| Artifact | Use |
+|----------|-----|
+| `tarpaulin-report.html` | Browseable per-file report |
+| `lcov.info` | Upload to Codecov / Coveralls |
+| `tarpaulin-report.json` | Badge / dashboard data |
+
+The badge at the top of this README points to the local config; in CI, replace
+it with the Codecov / Coveralls URL once configured.
+
+### Bash API tests
+
 ```bash
 ./run_tests.sh
 ```
@@ -412,13 +488,24 @@ Starts the stack if needed, waits for health, runs all unit and API tests, repor
 
 ```
 repo/
-├── unit_tests/          # focused single-operation tests
+├── src/
+│   ├── …/                  # every business-logic module ships its own
+│   │                       # `#[cfg(test)] mod tests` block
+├── tests/                  # blackbox integration tests (cargo test --test …)
+│   ├── crypto_roundtrip.rs
+│   ├── error_responses.rs
+│   ├── health_endpoints.rs
+│   ├── middleware_unauthenticated.rs
+│   ├── permission_boundaries.rs
+│   ├── rate_limit_middleware.rs
+│   └── security_headers.rs
+├── unit_tests/             # focused single-operation Bash tests
 │   ├── test_01_health.sh
 │   ├── test_02_auth_success.sh
 │   ├── test_03_auth_failures.sh
 │   ├── test_04_rbac.sh
 │   └── test_05_validation.sh
-├── API_tests/           # end-to-end workflow tests
+├── API_tests/              # end-to-end workflow Bash tests
 │   ├── test_01_auth_lifecycle.sh
 │   ├── test_02_health_profile.sh
 │   ├── test_03_metrics.sh
@@ -431,7 +518,8 @@ repo/
 │   ├── test_10_backup_restore.sh  # manual backup, checksum, drill, history
 │   ├── test_11_workflows.sh        # template CRUD, instance state machine, approvals, SLA
 │   ├── test_12_notifications.sh   # create, list, mark-read, subscriptions, schedules
-│   └── test_13_security_matrix.sh # 401 matrix, RBAC negatives, object-level auth, org isolation
+│   ├── test_13_security_matrix.sh # 401 matrix, RBAC negatives, object-level auth, org isolation
+│   └── test_14_export_download.sh # export download, path traversal, role auth
 ├── run_tests.sh
 └── tests_common.sh      # shared helpers sourced by all tests
 ```
@@ -440,23 +528,24 @@ repo/
 
 | Feature | Test file(s) |
 |---------|-------------|
-| Health endpoint | `unit/test_01` |
-| Auth success + token lifecycle | `unit/test_02`, `api/test_01` |
-| Auth failure + error shape | `unit/test_03` |
-| RBAC enforcement | `unit/test_04`, `api/test_05` |
-| Input validation + boundaries | `unit/test_05` |
-| Health profile CRUD | `api/test_02` |
-| Metric entries + summary | `api/test_03` |
-| Goals workflow + direction | `api/test_04` |
-| Audit log access + pagination | `api/test_05` |
-| Data persistence + work orders | `api/test_06` |
-| **HMAC signing** | `api/test_07` |
-| **Rate limiting + lockout + CAPTCHA** | `api/test_08` |
-| **Key rotation enforcement** | `api/test_09` |
-| **Backup/restore drill** | `api/test_10` |
-| **Workflow templates + approval state machine** | `api/test_11` |
-| **Notifications + subscriptions + schedules** | `api/test_12` |
-| **Security matrix: 401, RBAC, object-level auth, org isolation, rate-limit sharing** | `api/test_13` |
+| Health endpoint | `unit_tests/test_01_health.sh` |
+| Auth success + token lifecycle | `unit_tests/test_02_auth_success.sh`, `API_tests/test_01_auth_lifecycle.sh` |
+| Auth failure + error shape | `unit_tests/test_03_auth_failures.sh` |
+| RBAC enforcement | `unit_tests/test_04_rbac.sh`, `API_tests/test_05_audit_logs.sh` |
+| Input validation + boundaries | `unit_tests/test_05_validation.sh` |
+| Health profile CRUD | `API_tests/test_02_health_profile.sh` |
+| Metric entries + summary | `API_tests/test_03_metrics.sh` |
+| Goals workflow + direction | `API_tests/test_04_goals.sh` |
+| Audit log access + pagination | `API_tests/test_05_audit_logs.sh` |
+| Data persistence + work orders | `API_tests/test_06_persistence.sh` |
+| HMAC signing | `API_tests/test_07_hmac_signing.sh` |
+| Rate limiting + lockout + CAPTCHA | `API_tests/test_08_rate_limiting.sh` |
+| Key rotation enforcement | `API_tests/test_09_key_rotation.sh` |
+| Backup/restore drill | `API_tests/test_10_backup_restore.sh` |
+| Workflow templates + approval state machine | `API_tests/test_11_workflows.sh` |
+| Notifications + subscriptions + schedules | `API_tests/test_12_notifications.sh` |
+| Security matrix: 401, RBAC, object-level auth, org isolation | `API_tests/test_13_security_matrix.sh` |
+| Export download + path traversal + role auth | `API_tests/test_14_export_download.sh` |
 
 ---
 

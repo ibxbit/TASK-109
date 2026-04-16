@@ -1,0 +1,41 @@
+# Build + run cargo tests in a self-contained image.
+# Source is baked in with COPY (no bind mount → no Windows-FS I/O errors).
+#   docker build -f Dockerfile.cargotest -t vitalpath-cargotest . &&
+#   docker run --rm vitalpath-cargotest
+FROM rust:1.88-slim-bookworm
+
+RUN apt-get update -qq \
+ && apt-get install -y -qq --no-install-recommends libpq-dev pkg-config \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Keep peak memory low — large actix/diesel linker steps run sequentially.
+ENV CARGO_BUILD_JOBS=2 \
+    CARGO_INCREMENTAL=0 \
+    RUSTFLAGS="-C codegen-units=1 -C debuginfo=1"
+
+# Cache deps (same trick as the main Dockerfile — rebuild only when
+# Cargo.toml/Cargo.lock change).
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir src \
+ && echo "fn main() {}" > src/main.rs \
+ && echo "" > src/lib.rs \
+ && cargo test --no-run \
+ && rm -f src/main.rs src/lib.rs
+
+# Copy the real source tree.
+COPY src ./src
+COPY migrations ./migrations
+COPY tests ./tests
+
+# Compile tests. We deliberately do NOT pipe through `tail`: on a crash
+# the full error (including rustc/linker diagnostic) must reach the
+# build log. The stub target from the dep-cache step is invalidated
+# by touching src entry points; cargo incrementally rebuilds the lib +
+# bin + every test binary.
+RUN touch src/main.rs src/lib.rs \
+ && cargo test --no-run --color never
+
+# Default: run the suite.
+CMD ["cargo", "test", "--color", "never"]

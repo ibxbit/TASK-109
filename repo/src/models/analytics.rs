@@ -185,3 +185,119 @@ pub struct ExportMeta {
     /// Relative URL to fetch the file.
     pub download_url: String,
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Unit tests — date-string parsing for the analytics filter.
+// ─────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use validator::Validate;
+
+    fn empty_query() -> AnalyticsQuery {
+        AnalyticsQuery {
+            start_date: None,
+            end_date: None,
+            org_unit_id: None,
+            ticket_type: None,
+        }
+    }
+
+    #[test]
+    fn resolved_filter_with_no_dates_keeps_them_none() {
+        let f = ResolvedFilter::parse(&empty_query(), vec![]).unwrap();
+        assert!(f.start_dt.is_none());
+        assert!(f.end_dt.is_none());
+        assert!(f.member_ids.is_empty());
+    }
+
+    #[test]
+    fn resolved_filter_parses_valid_iso_date() {
+        let mut q = empty_query();
+        q.start_date = Some("2024-01-01".into());
+        q.end_date = Some("2024-12-31".into());
+        let f = ResolvedFilter::parse(&q, vec![]).unwrap();
+        let s = f.start_dt.unwrap();
+        let e = f.end_dt.unwrap();
+        assert_eq!(s.format("%Y-%m-%d").to_string(), "2024-01-01");
+        // End date is anchored at 23:59:59 to make the range inclusive.
+        assert_eq!(e.format("%H:%M:%S").to_string(), "23:59:59");
+    }
+
+    #[test]
+    fn resolved_filter_rejects_malformed_start_date() {
+        let mut q = empty_query();
+        q.start_date = Some("01/01/2024".into());
+        let err = ResolvedFilter::parse(&q, vec![]).unwrap_err();
+        assert!(err.contains("start_date"));
+    }
+
+    #[test]
+    fn resolved_filter_rejects_malformed_end_date() {
+        let mut q = empty_query();
+        q.end_date = Some("not-a-date".into());
+        let err = ResolvedFilter::parse(&q, vec![]).unwrap_err();
+        assert!(err.contains("end_date"));
+    }
+
+    #[test]
+    fn resolved_filter_carries_org_unit_and_ticket_type() {
+        let org = Uuid::new_v4();
+        let mut q = empty_query();
+        q.org_unit_id = Some(org);
+        q.ticket_type = Some("equipment".into());
+        let mids = vec![Uuid::new_v4(), Uuid::new_v4()];
+        let f = ResolvedFilter::parse(&q, mids.clone()).unwrap();
+        assert_eq!(f.org_unit_id, Some(org));
+        assert_eq!(f.ticket_type.as_deref(), Some("equipment"));
+        assert_eq!(f.member_ids, mids);
+    }
+
+    #[test]
+    fn export_request_validates_format_length() {
+        let req = ExportRequest {
+            format:      "csv".into(),
+            start_date:  Some("2024-01-01".into()),
+            end_date:    Some("2024-12-31".into()),
+            org_unit_id: None,
+            ticket_type: None,
+        };
+        assert!(req.validate().is_ok());
+    }
+
+    #[test]
+    fn export_request_rejects_empty_format() {
+        let req = ExportRequest {
+            format:      "".into(),
+            start_date:  None,
+            end_date:    None,
+            org_unit_id: None,
+            ticket_type: None,
+        };
+        assert!(req.validate().is_err());
+    }
+
+    #[test]
+    fn export_request_rejects_oversized_format() {
+        let req = ExportRequest {
+            format:      "x".repeat(11),
+            start_date:  None,
+            end_date:    None,
+            org_unit_id: None,
+            ticket_type: None,
+        };
+        assert!(req.validate().is_err());
+    }
+
+    #[test]
+    fn export_request_rejects_short_dates() {
+        let req = ExportRequest {
+            format:      "csv".into(),
+            start_date:  Some("2024-1-1".into()), // 8 chars not 10
+            end_date:    None,
+            org_unit_id: None,
+            ticket_type: None,
+        };
+        assert!(req.validate().is_err());
+    }
+}

@@ -126,3 +126,124 @@ pub fn check_key_rotation(conn: &mut PgConnection) {
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Unit tests — FieldCipher roundtrip, tamper detection, error paths.
+// ─────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Deterministic 32-byte test key — zero bytes + 1..31 to distinguish
+    /// from an all-zero key that some libraries treat as weak.
+    fn test_key() -> [u8; 32] {
+        let mut k = [0u8; 32];
+        for (i, byte) in k.iter_mut().enumerate() {
+            *byte = i as u8;
+        }
+        k
+    }
+
+    #[test]
+    fn encrypt_decrypt_roundtrip_ascii() {
+        let c = FieldCipher::new(&test_key(), "v1");
+        let plaintext = "hello, world";
+        let (ct, nonce) = c.encrypt(plaintext).expect("encrypt");
+        let decrypted = c.decrypt(&ct, &nonce).expect("decrypt");
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn encrypt_decrypt_roundtrip_unicode() {
+        let c = FieldCipher::new(&test_key(), "v1");
+        let plaintext = "日本語 — emoji 🦀 — and a null\0byte";
+        let (ct, nonce) = c.encrypt(plaintext).expect("encrypt");
+        let decrypted = c.decrypt(&ct, &nonce).expect("decrypt");
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn each_encryption_produces_fresh_nonce() {
+        let c = FieldCipher::new(&test_key(), "v1");
+        let (ct1, n1) = c.encrypt("same").unwrap();
+        let (ct2, n2) = c.encrypt("same").unwrap();
+        // Ciphertexts and nonces differ even though plaintext is identical.
+        assert_ne!(ct1, ct2);
+        assert_ne!(n1, n2);
+    }
+
+    #[test]
+    fn tampered_ciphertext_fails_auth() {
+        let c = FieldCipher::new(&test_key(), "v1");
+        let (ct, nonce) = c.encrypt("sensitive").unwrap();
+        // Flip a single byte in the last 4 base64 characters (where the
+        // AEAD tag lives). Using index math (not character replacement)
+        // guarantees a mutation regardless of which chars the random
+        // ciphertext happens to contain.
+        let mut bytes = ct.into_bytes();
+        let last = bytes.len() - 1;
+        bytes[last] = if bytes[last] == b'A' { b'B' } else { b'A' };
+        let tampered = String::from_utf8(bytes).unwrap();
+        assert!(c.decrypt(&tampered, &nonce).is_err());
+    }
+
+    #[test]
+    fn wrong_nonce_fails_decryption() {
+        let c = FieldCipher::new(&test_key(), "v1");
+        let (ct, _nonce) = c.encrypt("secret").unwrap();
+        let (_, other_nonce) = c.encrypt("other").unwrap();
+        assert!(c.decrypt(&ct, &other_nonce).is_err());
+    }
+
+    #[test]
+    fn wrong_key_fails_decryption() {
+        let c1 = FieldCipher::new(&test_key(), "v1");
+        let (ct, nonce) = c1.encrypt("secret").unwrap();
+
+        let mut other_key = test_key();
+        other_key[0] ^= 0xFF;
+        let c2 = FieldCipher::new(&other_key, "v1");
+        assert!(c2.decrypt(&ct, &nonce).is_err());
+    }
+
+    #[test]
+    fn invalid_base64_ciphertext_returns_error() {
+        let c = FieldCipher::new(&test_key(), "v1");
+        let (_, nonce) = c.encrypt("ok").unwrap();
+        let err = c.decrypt("not@base64!!!", &nonce).unwrap_err();
+        assert!(matches!(err, AppError::Internal(_)));
+    }
+
+    #[test]
+    fn invalid_base64_nonce_returns_error() {
+        let c = FieldCipher::new(&test_key(), "v1");
+        let (ct, _) = c.encrypt("ok").unwrap();
+        assert!(c.decrypt(&ct, "@@@@").is_err());
+    }
+
+    #[test]
+    fn nonce_wrong_length_returns_error() {
+        let c = FieldCipher::new(&test_key(), "v1");
+        let (ct, _) = c.encrypt("ok").unwrap();
+        // 11 bytes (not 12) base64-encoded.
+        let short_nonce = B64.encode([1u8; 11]);
+        let err = c.decrypt(&ct, &short_nonce).unwrap_err();
+        match err {
+            AppError::Internal(e) => assert!(e.to_string().contains("Nonce")),
+            _ => panic!("expected Internal error, got {:?}", err),
+        }
+    }
+
+    #[test]
+    fn key_version_is_retained() {
+        let c = FieldCipher::new(&test_key(), "v7");
+        assert_eq!(c.key_version, "v7");
+    }
+
+    #[test]
+    fn empty_plaintext_roundtrips() {
+        let c = FieldCipher::new(&test_key(), "v1");
+        let (ct, nonce) = c.encrypt("").unwrap();
+        assert_eq!(c.decrypt(&ct, &nonce).unwrap(), "");
+    }
+}

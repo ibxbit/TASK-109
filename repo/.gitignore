@@ -68,3 +68,8 @@ pg_data/
 test-results/
 *.tap
 coverage/
+
+# ── Local SQLite databases ────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
